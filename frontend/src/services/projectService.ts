@@ -102,6 +102,16 @@ const buyCreditOffChain = async (listingId: number, token: string) => {
   return response.data;
 };
 
+const getMyListings = async (token: string) => {
+  const config = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  };
+  const response = await axios.get(`${API_BASE_URL}/listings/my-listings/`, config);
+  return response.data;
+};
+
 const projectService = {
   getProjects,
   getActiveListings,
@@ -113,6 +123,7 @@ const projectService = {
   listCredit,
   claimProceeds,
   buyCreditOffChain,
+  getMyListings,
 };
 
 export default projectService;

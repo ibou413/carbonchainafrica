@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
-import { getProjects, addProject, getCarbonCredits, listCredit, claimProceeds, CarbonCredit } from '../../store/carbonSlice';
+import { getProjects, addProject, getCarbonCredits, listCredit, claimProceeds, CarbonCredit, getMyListings, Listing } from '../../store/carbonSlice';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -14,50 +14,37 @@ import { WalletAlert } from '../WalletAlert';
 import { Plus, Leaf, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import escrowService from '../../services/escrowService';
-import nftService from '../../services/nftService';
 import { selectHashConnect } from '../../store/hashconnectSlice';
-
 import { useHashConnect } from '../../hooks/useHashConnect';
 
 export function SellerDashboard() {
   const dispatch = useDispatch<AppDispatch>();
   const { currentUser } = useSelector((state: RootState) => state.user);
-  const { projects, carbonCredits } = useSelector((state: RootState) => state.carbon);
+  const { projects, carbonCredits, myListings, isLoading } = useSelector((state: RootState) => state.carbon);
   const { isConnected, accountId } = useSelector(selectHashConnect);
   const { connect } = useHashConnect();
 
-  console.log("--- SellerDashboard Rerender ---");
-  console.log("Projects from store:", projects);
-  console.log("Carbon credits from store:", carbonCredits);
-  console.log("Current user from store:", currentUser);
-
   useEffect(() => {
     if (currentUser) {
-        console.log("Dispatching getProjects and getCarbonCredits");
-        dispatch(getProjects())
-            .unwrap()
-            .then(payload => console.log('getProjects fulfilled payload:', payload))
-            .catch(error => console.error('getProjects rejected error:', error));
-        dispatch(getCarbonCredits())
-            .unwrap()
-            .then(payload => console.log('getCarbonCredits fulfilled payload:', payload))
-            .catch(error => console.error('getCarbonCredits rejected error:', error));
+        dispatch(getProjects());
+        dispatch(getCarbonCredits()); // Still needed for the 'Disponibles' tab
+        dispatch(getMyListings()).unwrap()
+            .then(payload => console.log('### getMyListings fulfilled payload:', payload))
+            .catch(error => console.error('### getMyListings rejected error:', error));
     }
   }, [dispatch, currentUser]);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  // Data derived from state
   const myProjects = projects.filter(p => p.owner?.username === currentUser?.user?.username);
   const pendingProjects = myProjects.filter(p => p.status === 'PENDING');
   const approvedProjects = myProjects.filter(p => p.status === 'APPROVED');
   const rejectedProjects = myProjects.filter(p => p.status === 'REJECTED');
 
   const mintedCredits = carbonCredits.filter(c => c.status === 'MINTED');
-  const listedCredits = carbonCredits.filter(c => c.status === 'LISTED');
-  const soldCredits = carbonCredits.filter(c => c.status === 'SOLD');
-
-  console.log("My projects after filter:", myProjects);
-  console.log("Minted credits after filter:", mintedCredits);
+  const myActiveListings = myListings.filter(l => l.is_active);
+  const mySoldListings = myListings.filter(l => !l.is_active);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -77,13 +64,8 @@ export function SellerDashboard() {
     try {
       toast.info("Veuillez approuver la transaction dans votre portefeuille...");
       
-      // TODO: This is a temporary fix. In a real application, the full metadata object
-      // should be uploaded to IPFS, and the resulting CID (hash) should be used here.
-      // Using the full JSON string exceeds the 100-byte metadata limit for Hedera NFTs.
       const metadataCid = formData.name;
-
       const fee = 50; 
-
       const transactionId = await escrowService.submitProject(accountId, metadataCid, fee);
       toast.success("Transaction Hedera réussie !");
 
@@ -97,9 +79,7 @@ export function SellerDashboard() {
       };
 
       await dispatch(addProject(projectData));
-      
       toast.success(`Projet soumis pour vérification !`);
-
       setFormData({ name: '', description: '', location: '', tonnage: '', vintage: '2024' });
       setIsDialogOpen(false);
 
@@ -109,24 +89,6 @@ export function SellerDashboard() {
       toast.error("Erreur lors de la soumission:", {
         description: errorMessage,
       });
-    }
-  };
-
-  const handleApproveMarketplace = async () => {
-    if (!isConnected || !accountId) {
-      toast.error('Connectez votre wallet pour approuver la marketplace');
-      return;
-    }
-    try {
-        toast.info("Veuillez approuver la transaction dans votre portefeuille...");
-        await nftService.approveMarketplace(accountId);
-        toast.success("Marketplace approuvée avec succès !");
-    } catch (error: any) {
-        const errorMessage = error.message || "An unknown error occurred.";
-        console.error("Error approving marketplace:", error);
-        toast.error("Erreur lors de l'approbation:", {
-            description: errorMessage,
-        });
     }
   };
 
@@ -191,25 +153,49 @@ export function SellerDashboard() {
             <TabsTrigger value="approved">Approuvés ({approvedProjects.length})</TabsTrigger>
             <TabsTrigger value="rejected">Rejetés ({rejectedProjects.length})</TabsTrigger>
             </TabsList>
-            <TabsContent value="all" className="space-y-4">
-            {myProjects.map(project => (
-                <ProjectCard key={project.id} project={project} />
-            ))}
+            <TabsContent value="all" key="all-projects-content" className="space-y-4">
+            {isLoading ? (
+                <p>Chargement des projets...</p>
+            ) : myProjects.length === 0 ? (
+                <p>Aucun projet trouvé.</p>
+            ) : (
+                myProjects.map(project => (
+                    <ProjectCard key={project.id} project={project} />
+                ))
+            )}
             </TabsContent>
-            <TabsContent value="pending" className="space-y-4">
-            {pendingProjects.map(project => (
-                <ProjectCard key={project.id} project={project} />
-            ))}
+            <TabsContent value="pending" key="pending-projects-content" className="space-y-4">
+            {isLoading ? (
+                <p>Chargement des projets en attente...</p>
+            ) : pendingProjects.length === 0 ? (
+                <p>Aucun projet en attente.</p>
+            ) : (
+                pendingProjects.map(project => (
+                    <ProjectCard key={project.id} project={project} />
+                ))
+            )}
             </TabsContent>
-            <TabsContent value="approved" className="space-y-4">
-            {approvedProjects.map(project => (
-                <ProjectCard key={project.id} project={project} />
-            ))}
+            <TabsContent value="approved" key="approved-projects-content" className="space-y-4">
+            {isLoading ? (
+                <p>Chargement des projets approuvés...</p>
+            ) : approvedProjects.length === 0 ? (
+                <p>Aucun projet approuvé.</p>
+            ) : (
+                approvedProjects.map(project => (
+                    <ProjectCard key={project.id} project={project} />
+                ))
+            )}
             </TabsContent>
-            <TabsContent value="rejected" className="space-y-4">
-            {rejectedProjects.map(project => (
-                <ProjectCard key={project.id} project={project} />
-            ))}
+            <TabsContent value="rejected" key="rejected-projects-content" className="space-y-4">
+            {isLoading ? (
+                <p>Chargement des projets rejetés...</p>
+            ) : rejectedProjects.length === 0 ? (
+                <p>Aucun projet rejeté.</p>
+            ) : (
+                rejectedProjects.map(project => (
+                    <ProjectCard key={project.id} project={project} />
+                ))
+            )}
             </TabsContent>
         </Tabs>
       </div>
@@ -218,31 +204,45 @@ export function SellerDashboard() {
       <div className="space-y-4">
         <div className="flex justify-between items-center">
             <h2 className="text-2xl text-gray-900">Mes Crédits Carbone</h2>
-            <Button onClick={handleApproveMarketplace} variant="outline">
-                <Check className="w-4 h-4 mr-2" />
-                Activer la Marketplace (action unique)
-            </Button>
         </div>
         <Tabs defaultValue="minted" className="space-y-4">
             <TabsList>
                 <TabsTrigger value="minted">Disponibles ({mintedCredits.length})</TabsTrigger>
-                <TabsTrigger value="listed">En Vente ({listedCredits.length})</TabsTrigger>
-                <TabsTrigger value="sold">Vendus ({soldCredits.length})</TabsTrigger>
+                <TabsTrigger value="listed">En Vente ({myActiveListings.length})</TabsTrigger>
+                <TabsTrigger value="sold">Vendus ({mySoldListings.length})</TabsTrigger>
             </TabsList>
             <TabsContent value="minted" className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {mintedCredits.map(credit => (
-                    <CreditCard key={credit.id} credit={credit} />
-                ))}
+                {isLoading ? (
+                    <p>Chargement des crédits disponibles...</p>
+                ) : mintedCredits.length === 0 ? (
+                    <p>Aucun crédit disponible.</p>
+                ) : (
+                    mintedCredits.map(credit => (
+                        <CreditCard key={credit.id} credit={credit} />
+                    ))
+                )}
             </TabsContent>
             <TabsContent value="listed" className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {listedCredits.map(credit => (
-                    <CreditCard key={credit.id} credit={credit} />
-                ))}
+                {isLoading ? (
+                    <p>Chargement des crédits en vente...</p>
+                ) : myActiveListings.length === 0 ? (
+                    <p>Aucun crédit en vente.</p>
+                ) : (
+                    myActiveListings.map(listing => (
+                        <ListingCard key={listing.id} listing={listing} />
+                    ))
+                )}
             </TabsContent>
             <TabsContent value="sold" className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {soldCredits.map(credit => (
-                    <CreditCard key={credit.id} credit={credit} />
-                ))}
+                {isLoading ? (
+                    <p>Chargement des crédits vendus...</p>
+                ) : mySoldListings.length === 0 ? (
+                    <p>Aucun crédit vendu.</p>
+                ) : (
+                    mySoldListings.map(listing => (
+                        <CreditCard key={listing.id} credit={listing.credit} listingId={listing.id} />
+                    ))
+                )}
             </TabsContent>
         </Tabs>
       </div>
@@ -250,7 +250,7 @@ export function SellerDashboard() {
   );
 }
 
-function ProjectCard({ project }: { project: any }) {
+const ProjectCard = React.memo(({ project }: { project: any }) => {
     const getStatusColor = (status: string) => {
         switch (status) {
         case 'APPROVED': return 'bg-emerald-100 text-emerald-700';
@@ -269,29 +269,72 @@ function ProjectCard({ project }: { project: any }) {
             </div>
             <Badge className={getStatusColor(project.status)}>{project.status}</Badge>
         </div>
-        <div className="mt-4">
+        <div class="mt-4">
             <p>{project.description}</p>
         </div>
         </Card>
     );
-}
+});
 
-function CreditCard({ credit }: { credit: CarbonCredit }) {
+const ListingCard = React.memo(({ listing }: { listing: Listing }) => {
+    const handleWithdraw = () => {
+        toast.info("La fonction de retrait n'est pas encore implémentée.");
+    }
+
+    return (
+        <Card className="p-6 flex flex-col justify-between bg-yellow-50 border-yellow-200">
+            <div>
+                <div className="flex justify-between items-start">
+                    <h3 className="text-lg font-semibold text-gray-900">Crédit #{listing.credit.serial_number}</h3>
+                    <Badge className='bg-yellow-100 text-yellow-700'>EN VENTE</Badge>
+                </div>
+                <p className="text-sm text-gray-500 mt-1">Projet: {listing.credit.project.name}</p>
+            </div>
+            <div className="mt-4">
+                <p className="text-lg font-bold text-gray-900">{listing.price} HBAR</p>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+                <Button onClick={handleWithdraw} variant="outline">Retirer</Button>
+            </div>
+        </Card>
+    );
+});
+
+const CreditCard = React.memo(({ credit, listingId }: { credit: CarbonCredit, listingId?: number }) => {
     const dispatch = useDispatch<AppDispatch>();
     const { accountId } = useSelector(selectHashConnect);
+    const { myListings } = useSelector((state: RootState) => state.carbon); // Get myListings from Redux state
     const [isListingOpen, setIsListingOpen] = useState(false);
     const [price, setPrice] = useState('');
+
+    // Find the current listing to check its claimed status
+    const currentListing = myListings.find(l => l.id === listingId);
+    const isClaimed = currentListing?.claimed || false;
 
     const handleListCredit = async () => {
         if (!accountId) {
             toast.error("Veuillez connecter votre portefeuille.");
             return;
         }
+
+        const parsedPrice = parseFloat(price);
+        if (isNaN(parsedPrice) || parsedPrice <= 0) {
+            toast.error("Prix invalide", {
+                description: "Veuillez entrer un prix valide et supérieur à zéro.",
+            });
+            return;
+        }
+
         try {
             toast.info("Veuillez approuver les transactions dans votre portefeuille pour lister le crédit...");
-            await nftService.listCreditOnChain(accountId, credit.serial_number, parseFloat(price));
+            
+            await dispatch(listCredit({
+                creditId: credit.id,
+                serialNumber: credit.serial_number,
+                price: parsedPrice
+            })).unwrap();
+
             toast.success("Crédit listé sur la marketplace avec succès !");
-            dispatch(listCredit({ credit: credit.id, price: parseFloat(price) }));
             setIsListingOpen(false);
         } catch (error: any) {
             const errorMessage = error.message || "An unknown error occurred.";
@@ -302,8 +345,22 @@ function CreditCard({ credit }: { credit: CarbonCredit }) {
         }
     }
 
-    const handleClaimProceeds = () => {
-        toast.info("La réclamation des fonds n'est pas encore implémentée.");
+    const handleClaimProceeds = async () => {
+        if (!listingId) {
+            toast.error("Impossible de réclamer les fonds: ID de listing manquant.");
+            return;
+        }
+        try {
+            toast.info("Veuillez approuver la transaction dans votre portefeuille pour réclamer les fonds...");
+            await dispatch(claimProceeds({ listingId, serialNumber: credit.serial_number })).unwrap();
+            toast.success("Fonds réclamés avec succès !");
+        } catch (error: any) {
+            const errorMessage = error.message || "Une erreur inconnue est survenue.";
+            console.error("Error claiming proceeds:", error);
+            toast.error("Erreur lors de la réclamation des fonds:", {
+                description: errorMessage,
+            });
+        }
     }
 
     return (
@@ -335,7 +392,9 @@ function CreditCard({ credit }: { credit: CarbonCredit }) {
                         <Button onClick={() => setIsListingOpen(true)}>Mettre en vente</Button>
                     )}
                     {credit.status === 'SOLD' && (
-                        <Button onClick={handleClaimProceeds}>Réclamer les fonds</Button>
+                        <Button onClick={handleClaimProceeds} disabled={isClaimed}>
+                            {isClaimed ? "Fonds récupérés" : "Réclamer les fonds"}
+                        </Button>
                     )}
                 </div>
             </Card>
@@ -355,4 +414,4 @@ function CreditCard({ credit }: { credit: CarbonCredit }) {
             </Dialog>
         </>
     );
-}
+});

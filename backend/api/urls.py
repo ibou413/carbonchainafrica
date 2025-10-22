@@ -7,6 +7,7 @@ from .views import (
     ProjectDetailAPIView,
     ProjectReviewAPIView,
     ListingListCreateAPIView,
+    MyListingsAPIView,
     UserNFTListView,
     NFTDetailView,
     BuyCreditAPIView,
@@ -24,6 +25,7 @@ urlpatterns = [
     path('projects/<int:pk>/', ProjectDetailAPIView.as_view(), name='project-detail'),
     path('projects/<int:pk>/review/', ProjectReviewAPIView.as_view(), name='project-review'),
     path('listings/', ListingListCreateAPIView.as_view(), name='listing-list-create'),
+    path('listings/my-listings/', MyListingsAPIView.as_view(), name='my-listings'),
 
     # NFT Management
     path('nfts/my-nfts/', UserNFTListView.as_view(), name='user-nft-list'),

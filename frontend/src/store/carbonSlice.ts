@@ -1,12 +1,18 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import {TokenId, AccountId, TransferTransaction, ContractExecuteTransaction, ContractFunctionParameters, NftId, Hbar } from '@hashgraph/sdk';
 import type { RootState } from './index';
 import projectService from '../services/projectService';
 import escrowService from '../services/escrowService';
 import nftService from '../services/nftService';
+import { getHashConnect } from '../services/hashconnect';
+import deploymentData from '../../deployment-new-architecture.json';
+import { useSelector } from 'react-redux';
 
 // Types should ideally be in a separate types file
 export type ProjectStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type CreditStatus = 'MINTED' | 'LISTED' | 'SOLD';
+
+
 
 export interface Project {
   id: number;
@@ -30,19 +36,24 @@ export interface CarbonCredit {
   serial_number: number;
   status: CreditStatus;
   created_at: string;
+
 }
 
 export interface Listing {
     id: number;
+    seller: any;
     credit: CarbonCredit;
     price: string;
     is_active: boolean;
+    claimed: boolean; // Added to track if proceeds have been claimed
+    created_at: string;
 }
 
 interface CarbonState {
   projects: Project[];
   carbonCredits: CarbonCredit[];
-  listings: Listing[];
+  listings: Listing[]; // For public marketplace
+  myListings: Listing[]; // For seller dashboard
   isLoading: boolean;
   isError: boolean;
   message: string;
@@ -52,6 +63,7 @@ const initialState: CarbonState = {
   projects: [],
   carbonCredits: [],
   listings: [],
+  myListings: [],
   isLoading: false,
   isError: false,
   message: '',
@@ -109,16 +121,73 @@ export const getCarbonCredits = createAsyncThunk(
   }
 );
 
-export const listCredit = createAsyncThunk(
-  'carbon/listCredit',
-  async (listingData: { credit: number; price: number }, thunkAPI) => {
+export const getMyListings = createAsyncThunk(
+  'carbon/getMyListings',
+  async (_, thunkAPI) => {
     try {
       const state = thunkAPI.getState() as RootState;
       const token = state.user.currentUser?.access;
       if (!token) {
         return thunkAPI.rejectWithValue('User not authenticated');
       }
-      return await projectService.listCredit(listingData, token);
+      return await projectService.getMyListings(token);
+    } catch (error: any) {
+      const message = (error.response && error.response.data && error.response.data.message) || error.message || error.toString();
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
+export const listCredit = createAsyncThunk(
+  'carbon/listCredit',
+  async (listingData: { creditId: number; serialNumber: number; price: number }, thunkAPI) => {
+    try {
+      const state = thunkAPI.getState() as RootState;
+      const token = state.user.currentUser?.access;
+      const accountId = state.hashconnect.accountId;
+      if (!token || !accountId) {
+        return thunkAPI.rejectWithValue('User not authenticated or wallet not connected');
+      }
+
+      // --- ON-CHAIN LOGIC --- 
+      const hc = await getHashConnect();
+      if (!hc) throw new Error("HashConnect not initialized");
+
+      const signer = hc.getSigner(accountId);
+      const userAccountId = AccountId.fromString(accountId);
+      const marketplaceContractId = deploymentData.marketplaceContractId;
+      const nftTokenId = TokenId.fromString(deploymentData.nftTokenAddress);
+      const nftId = new NftId(nftTokenId, listingData.serialNumber);
+      const priceInHbar = new Hbar(listingData.price);
+
+      // 1. Transfer NFT to marketplace contract
+      const transferTx = await new TransferTransaction()
+        .addNftTransfer(nftId, userAccountId, marketplaceContractId)
+        .freezeWithSigner(signer);
+      const transferResponse = await transferTx.executeWithSigner(signer);
+      // @ts-ignore
+      await transferResponse.getReceiptWithSigner(signer);
+
+      // 2. Call listDepositedCredit
+      const listTx = await new ContractExecuteTransaction()
+        // @ts-ignore
+        .setContractId(marketplaceContractId)
+        .setGas(1000000)
+        .setFunction("listDepositedCredit", new ContractFunctionParameters()
+            .addInt64(listingData.serialNumber)
+            .addUint256(priceInHbar.toTinybars())
+        )
+        .freezeWithSigner(signer);
+      
+      const listResponse = await listTx.executeWithSigner(signer);
+      // @ts-ignore
+      await listResponse.getReceiptWithSigner(signer);
+      // --- END ON-CHAIN LOGIC ---
+
+      // --- OFF-CHAIN LOGIC (only if on-chain succeeds) ---
+      const offChainData = { credit: listingData.creditId, price: listingData.price };
+      return await projectService.listCredit(offChainData, token);
+
     } catch (error: any) {
       const message = (error.response && error.response.data && error.response.data.message) || error.message || error.toString();
       return thunkAPI.rejectWithValue(message);
@@ -128,14 +197,40 @@ export const listCredit = createAsyncThunk(
 
 export const claimProceeds = createAsyncThunk(
   'carbon/claimProceeds',
-  async (listingId: number, thunkAPI) => {
+  async ({ listingId, serialNumber }: { listingId: number, serialNumber: number }, thunkAPI) => {
     try {
       const state = thunkAPI.getState() as RootState;
       const token = state.user.currentUser?.access;
-      if (!token) {
-        return thunkAPI.rejectWithValue('User not authenticated');
+      const accountId = state.hashconnect.accountId;
+
+      if (!token || !accountId) {
+        return thunkAPI.rejectWithValue('User not authenticated or wallet not connected');
       }
+
+      // --- ON-CHAIN LOGIC ---
+      const hc = await getHashConnect();
+      if (!hc) throw new Error("HashConnect not initialized");
+
+      const signer = hc.getSigner(accountId);
+      const marketplaceContractId = deploymentData.marketplaceContractId;
+
+      const claimTx = await new ContractExecuteTransaction()
+        // @ts-ignore
+        .setContractId(marketplaceContractId)
+        .setGas(1000000) // Adjust gas as needed
+        .setFunction("claimProceeds", new ContractFunctionParameters()
+            .addInt64(serialNumber)
+        )
+        .freezeWithSigner(signer);
+
+      const claimResponse = await claimTx.executeWithSigner(signer);
+      // @ts-ignore
+      await claimResponse.getReceiptWithSigner(signer);
+      // --- END ON-CHAIN LOGIC ---
+
+      // --- OFF-CHAIN LOGIC (only if on-chain succeeds) ---
       return await projectService.claimProceeds(listingId, token);
+
     } catch (error: any) {
       const message = (error.response && error.response.data && error.response.data.message) || error.message || error.toString();
       return thunkAPI.rejectWithValue(message);
@@ -153,10 +248,33 @@ export const buyCredit = createAsyncThunk(
       if (!token || !accountId) {
         return thunkAPI.rejectWithValue('User not authenticated or wallet not connected');
       }
-      // 1. On-chain transaction
-      await nftService.buyCreditOnChain(accountId, listing.credit.serial_number, listing.price);
-      // 2. Off-chain update
-      return await projectService.buyCreditOffChain(listing.id, token);
+
+      // --- ON-CHAIN LOGIC ---
+      const hc = await getHashConnect();
+      if (!hc) throw new Error("HashConnect not initialized");
+
+      const signer = hc.getSigner(accountId);
+      const priceInHbar = Hbar.fromString(listing.price);
+      const marketplaceContractId = deploymentData.marketplaceContractId;
+
+      const tx = await new ContractExecuteTransaction()
+        // @ts-ignore
+        .setContractId(marketplaceContractId)
+        .setGas(2000000)
+        .setPayableAmount(priceInHbar)
+        .setFunction("buyCredit", new ContractFunctionParameters()
+            .addInt64(listing.credit.serial_number)
+        )
+        .freezeWithSigner(signer);
+      
+      const response = await tx.executeWithSigner(signer);
+      // @ts-ignore
+      await response.getReceiptWithSigner(signer);
+      // --- END ON-CHAIN LOGIC ---
+
+      // --- OFF-CHAIN LOGIC ---
+      return await nftService.buyCreditOffChain(listing.id, token);
+      
     } catch (error: any) {
       const message = (error.response && error.response.data && error.response.data.message) || error.message || error.toString();
       return thunkAPI.rejectWithValue(message);
@@ -187,6 +305,7 @@ export const getVerifierDashboardProjects = createAsyncThunk(
     try {
       const state = thunkAPI.getState() as RootState;
       const token = state.user.currentUser?.access;
+      
       if (!token) {
         return thunkAPI.rejectWithValue('User not authenticated');
       }
@@ -216,6 +335,8 @@ export const addProject = createAsyncThunk(
 );
 
 
+
+
 const carbonSlice = createSlice({
   name: 'carbon',
   initialState,
@@ -242,6 +363,17 @@ const carbonSlice = createSlice({
         state.isError = true;
         state.message = action.payload as string;
       })
+      .addCase(getMyListings.pending, (state) => { state.isLoading = true; })
+      .addCase(getMyListings.fulfilled, (state, action: PayloadAction<Listing[]>) => {
+        state.isLoading = false;
+        state.myListings = action.payload;
+      })
+      .addCase(getMyListings.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload as string;
+      })
+
       .addCase(getCarbonCredits.pending, (state) => { state.isLoading = true; })
       .addCase(getCarbonCredits.fulfilled, (state, action: PayloadAction<CarbonCredit[]>) => {
         state.isLoading = false;
@@ -266,8 +398,12 @@ const carbonSlice = createSlice({
         state.message = action.payload as string;
       })
       .addCase(claimProceeds.pending, (state) => { state.isLoading = true; })
-      .addCase(claimProceeds.fulfilled, (state, action: PayloadAction<any>) => {
+      .addCase(claimProceeds.fulfilled, (state, action: PayloadAction<Listing>) => {
         state.isLoading = false;
+        const index = state.myListings.findIndex(l => l.id === action.payload.id);
+        if (index !== -1) {
+            state.myListings[index] = action.payload; // Update the listing with the new claimed status
+        }
       })
       .addCase(claimProceeds.rejected, (state, action) => {
         state.isLoading = false;

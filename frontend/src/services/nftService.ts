@@ -1,10 +1,11 @@
 import { AccountId, AccountAllowanceApproveTransaction, TransferTransaction, ContractExecuteTransaction, ContractFunctionParameters, NftId, Hbar } from '@hashgraph/sdk';
 import deploymentData from '../../deployment-new-architecture.json';
+import axios from 'axios';
+import { getHashConnect } from './hashconnect';
 
+const API_BASE_URL = 'http://127.0.0.1:8000/api';
 const marketplaceContractId = AccountId.fromString(deploymentData.marketplaceContractId);
 const nftTokenId = deploymentData.nftTokenAddress;
-
-import { getHashConnect } from './hashconnect';
 
 class NftService {
 
@@ -57,25 +58,14 @@ class NftService {
     await listResponse.getReceiptWithSigner(signer);
   }
 
-  async buyCreditOnChain(accountId: string, serialNumber: number, price: string): Promise<void> {
-    const hc = await getHashConnect();
-    if (!hc) throw new Error("HashConnect not initialized");
-
-    const signer = hc.getSigner(accountId);
-    const priceInHbar = Hbar.fromString(price);
-
-    const tx = await new ContractExecuteTransaction()
-      .setContractId(marketplaceContractId)
-      .setGas(2000000)
-      .setPayableAmount(priceInHbar)
-      .setFunction("buyCredit", new ContractFunctionParameters()
-          .addInt64(serialNumber)
-      )
-      .freezeWithSigner(signer);
-    
-    const response = await tx.executeWithSigner(signer);
-    // @ts-ignore
-    await response.getReceiptWithSigner(signer);
+  async buyCreditOffChain(listingId: number, token: string) {
+    const config = {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    };
+    const response = await axios.post(`${API_BASE_URL}/listings/${listingId}/buy/`, {}, config);
+    return response.data;
   }
 }
 

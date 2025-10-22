@@ -216,8 +216,27 @@ class ListingListCreateAPIView(generics.ListCreateAPIView):
             return [permissions.IsAuthenticated(), IsSellerUser()]
         return [permissions.AllowAny()]
 
-    def perform_create(self, serializer):
-        serializer.save()
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        # Re-serialize with the detailed serializer for the response
+        response_serializer = ListingSerializer(serializer.instance)
+        headers = self.get_success_headers(response_serializer.data)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+class MyListingsAPIView(generics.ListAPIView):
+    """
+    API endpoint for a Seller to list all of their own listings (active and inactive).
+    """
+    serializer_class = ListingSerializer
+    permission_classes = [permissions.IsAuthenticated, IsSellerUser]
+
+    def get_queryset(self):
+        return Listing.objects.filter(seller=self.request.user).order_by('-created_at')
+
+
 
 
 class UserNFTListView(generics.ListAPIView):
@@ -275,12 +294,16 @@ class ClaimProceedsAPIView(generics.GenericAPIView):
 
     def post(self, request, *args, **kwargs):
         listing_id = self.kwargs.get('pk')
-        listing = get_object_or_404(Listing, pk=listing_id, credit__owner=request.user)
+        listing = get_object_or_404(Listing, pk=listing_id, seller=request.user)
 
-        # In a real app, this would trigger a secure fund transfer.
-        # For now, we just acknowledge the request.
-        return Response({"message": "Proceeds claim acknowledged. Fund transfer would be initiated."})
+        if listing.claimed:
+            return Response({"error": "Proceeds for this listing have already been claimed."}, status=status.HTTP_400_BAD_REQUEST)
 
+        listing.claimed = True
+        listing.save()
+
+        serializer = ListingSerializer(listing)
+        return Response(serializer.data)
 
 class WithdrawCreditAPIView(generics.GenericAPIView):
     """

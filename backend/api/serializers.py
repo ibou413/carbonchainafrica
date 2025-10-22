@@ -57,6 +57,7 @@ class CarbonCreditSerializer(serializers.ModelSerializer):
 
 class ListingSerializer(serializers.ModelSerializer):
     credit = CarbonCreditSerializer(read_only=True)
+    seller = UserSerializer(read_only=True)
 
     class Meta:
         model = Listing
@@ -79,7 +80,8 @@ class ListingCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         credit = validated_data['credit']
-        listing = Listing.objects.create(**validated_data)
+        # Assign the current user as the seller
+        listing = Listing.objects.create(seller=self.context['request'].user, **validated_data)
         credit.status = CarbonCredit.CreditStatus.LISTED
         credit.save()
         return listing
