@@ -27,7 +27,12 @@ export function MarketplaceView() {
       description: "Veuillez approuver la transaction dans votre portefeuille.",
     });
 
-    dispatch(buyCredit(listing));
+    dispatch(buyCredit(listing)).then(() => {
+      toast.success("Achat réussi !", {
+        description: "Le crédit carbone a été transféré sur votre compte.",
+      });
+      dispatch(getActiveListings()); // Refresh the listings
+    });
   };
 
   return (

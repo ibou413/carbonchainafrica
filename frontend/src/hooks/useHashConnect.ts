@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { getHashConnect, getInitPromise } from '../services/hashconnect';
+import { getHashConnect } from '../services/hashconnect';
 import { setLoading, setConnected, setDisconnected } from '../store/hashconnectSlice';
 import { HashConnect } from 'hashconnect';
 
@@ -8,13 +8,18 @@ export const useHashConnect = () => {
   const dispatch = useDispatch();
   const [hc, setHc] = useState<HashConnect | null>(null);
 
+  // useEffect to initialize and set up listeners once
   useEffect(() => {
-    const setup = async () => {
+    const setupHashConnect = async () => {
       try {
         const hcInstance = await getHashConnect();
         setHc(hcInstance);
-        const initData = await getInitPromise();
-        
+
+        // Clear any old listeners before attaching new ones
+        hcInstance.pairingEvent.off();
+        hcInstance.connectionStatusChangeEvent.off();
+
+        // Attach listeners
         hcInstance.pairingEvent.on(pairingData => {
           if (pairingData.accountIds.length > 0) {
             dispatch(setConnected({ 
@@ -30,6 +35,8 @@ export const useHashConnect = () => {
           }
         });
 
+        // Initialize and check for saved pairings
+        const initData = await hcInstance.init();
         if (initData && initData.savedPairings.length > 0) {
           const pairingData = initData.savedPairings[0];
           dispatch(setConnected({ 
@@ -43,29 +50,36 @@ export const useHashConnect = () => {
     };
 
     if (typeof window !== 'undefined') {
-      setup();
+      setupHashConnect();
     }
+
   }, [dispatch]);
 
-  const connect = useCallback(async () => {
-    if (!hc) return;
-    dispatch(setLoading(true));
-    try {
-      hc.openPairingModal();
-    } catch (error) {
-      console.error('Connection failed:', error);
+  const connect = useCallback(() => {
+    if (!hc) {
+      console.error("HashConnect not initialized, cannot open pairing modal.");
+      return;
     }
-  }, [dispatch, hc]);
+    dispatch(setLoading(true));
+    hc.openPairingModal();
+  }, [hc, dispatch]);
 
   const disconnect = useCallback(async () => {
-    if (!hc) return;
+    if (!hc) {
+      dispatch(setDisconnected());
+      return;
+    }
     try {
       if (hc.hcData.topic) {
-        hc.disconnect(hc.hcData.topic);
+        await hc.disconnect(hc.hcData.topic);
       }
+      hc.clearConnectionsAndData();
+      // Force clear localStorage to prevent any stale data from persisting
+      localStorage.removeItem('hashconnectData');
     } catch(error) {
-        console.error("Error disconnecting from wallet:", error);
+        console.error("Error during full disconnect:", error);
     } finally {
+        // Always update the state to disconnected
         dispatch(setDisconnected());
     }
   }, [dispatch, hc]);

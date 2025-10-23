@@ -98,6 +98,14 @@ export function SellerDashboard() {
       toast.success(`Métadonnées du projet téléchargées sur IPFS: ${metadataCid}`);
 
       const fee = 10; 
+
+      toast.info("Vérification de la connexion portefeuille...");
+      if (!isConnected || !accountId) {
+        toast.error("La session du portefeuille a peut-être expiré. Veuillez réessayer.");
+        throw new Error("Wallet session may have timed out during IPFS upload.");
+      }
+      toast.success("Connexion portefeuille active.");
+
       const transactionId = await escrowService.submitProject(accountId, metadataCid, fee);
       toast.success("Transaction Hedera réussie !");
 
@@ -115,6 +123,7 @@ export function SellerDashboard() {
 
       await dispatch(addProject(projectData));
       toast.success(`Projet soumis pour vérification !`);
+      dispatch(getProjects()); // Refresh the projects list
       setFormData({ name: '', description: '', location: '', tonnage: '', vintage: '2024' });
       setIsDialogOpen(false);
 
@@ -404,6 +413,8 @@ const CreditCard = React.memo(({ credit, listingId }: { credit: CarbonCredit, li
             })).unwrap();
 
             toast.success("Crédit listé sur la marketplace avec succès !");
+            dispatch(getCarbonCredits()); // Refresh credits
+            dispatch(getMyListings()); // Refresh listings
             setIsListingOpen(false);
         } catch (error: any) {
             const errorMessage = error.message || "An unknown error occurred.";
@@ -423,6 +434,7 @@ const CreditCard = React.memo(({ credit, listingId }: { credit: CarbonCredit, li
             toast.info("Veuillez approuver la transaction dans votre portefeuille pour réclamer les fonds...");
             await dispatch(claimProceeds({ listingId, serialNumber: credit.serial_number })).unwrap();
             toast.success("Fonds réclamés avec succès !");
+            dispatch(getMyListings()); // Refresh listings to update claimed status
         } catch (error: any) {
             const errorMessage = error.message || "Une erreur inconnue est survenue.";
             console.error("Error claiming proceeds:", error);
