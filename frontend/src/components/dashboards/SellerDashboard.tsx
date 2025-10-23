@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { getProjects, addProject, getCarbonCredits, listCredit, claimProceeds, CarbonCredit, getMyListings, Listing } from '../../store/carbonSlice';
@@ -12,7 +12,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { WalletAlert } from '../WalletAlert';
-import { Plus, Leaf, Check } from 'lucide-react';
+import { Plus, Leaf, Check, Clock, ShoppingCart, Loader2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import escrowService from '../../services/escrowService';
 import { selectHashConnect } from '../../store/hashconnectSlice';
@@ -25,35 +25,41 @@ export function SellerDashboard() {
   const { isConnected, accountId } = useSelector(selectHashConnect);
   const { connect } = useHashConnect();
 
+  const [activeProjectFilter, setActiveProjectFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
+  const [activeCreditFilter, setActiveCreditFilter] = useState<'MINTED' | 'LISTED' | 'SOLD'>('MINTED');
+
   useEffect(() => {
     if (currentUser) {
         dispatch(getProjects());
-        dispatch(getCarbonCredits()); // Still needed for the 'Disponibles' tab
-        dispatch(getMyListings()).unwrap()
-            .then(payload => console.log('### getMyListings fulfilled payload:', payload))
-            .catch(error => console.error('### getMyListings rejected error:', error));
+        dispatch(getCarbonCredits());
+        dispatch(getMyListings());
     }
   }, [dispatch, currentUser]);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  // Data derived from state
-  const myProjects = projects.filter(p => p.owner?.username === currentUser?.user?.username);
-  const pendingProjects = myProjects.filter(p => p.status === 'PENDING');
-  const approvedProjects = myProjects.filter(p => p.status === 'APPROVED');
-  const rejectedProjects = myProjects.filter(p => p.status === 'REJECTED');
+  // Data derived for Projects
+  const myProjects = useMemo(() => projects.filter(p => p.owner?.username === currentUser?.user?.username), [projects, currentUser]);
+  const pendingProjects = useMemo(() => myProjects.filter(p => p.status === 'PENDING'), [myProjects]);
+  const approvedProjects = useMemo(() => myProjects.filter(p => p.status === 'APPROVED'), [myProjects]);
+  const rejectedProjects = useMemo(() => myProjects.filter(p => p.status === 'REJECTED'), [myProjects]);
 
-  const mintedCredits = carbonCredits.filter(c => c.status === 'MINTED');
-  const myActiveListings = myListings.filter(l => l.is_active);
-  const mySoldListings = myListings.filter(l => !l.is_active);
+  const filteredProjects = useMemo(() => {
+    switch (activeProjectFilter) {
+      case 'PENDING': return pendingProjects;
+      case 'APPROVED': return approvedProjects;
+      case 'REJECTED': return rejectedProjects;
+      case 'ALL':
+      default: return myProjects;
+    }
+  }, [activeProjectFilter, myProjects, pendingProjects, approvedProjects, rejectedProjects]);
 
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    location: '',
-    tonnage: '',
-    vintage: '2024',
-  });
+  // Data derived for Credits
+  const mintedCredits = useMemo(() => carbonCredits.filter(c => c.owner?.username === currentUser?.user?.username && c.status === 'MINTED'), [carbonCredits, currentUser]);
+  const myActiveListings = useMemo(() => myListings.filter(l => l.seller?.username === currentUser?.user?.username && l.is_active), [myListings, currentUser]);
+  const mySoldListings = useMemo(() => myListings.filter(l => l.seller?.username === currentUser?.user?.username && !l.is_active), [myListings, currentUser]);
+
+  const [formData, setFormData] = useState({ name: '', description: '', location: '', tonnage: '', vintage: '2024' });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [documentFile, setDocumentFile] = useState<File | null>(null);
 
@@ -63,98 +69,59 @@ export function SellerDashboard() {
       toast.error('Connectez votre wallet pour soumettre un projet');
       return;
     }
-
     try {
       toast.info("Veuillez approuver la transaction dans votre portefeuille...");
-
       let imageCid = '';
       if (imageFile) {
         toast.info("Téléchargement de l'image du projet sur IPFS...");
         imageCid = await ipfsService.uploadFileToIpfs(imageFile);
         toast.success(`Image du projet téléchargée sur IPFS: ${imageCid}`);
       }
-
       let documentCid = '';
       if (documentFile) {
         toast.info("Téléchargement du document du projet sur IPFS...");
         documentCid = await ipfsService.uploadFileToIpfs(documentFile);
         toast.success(`Document du projet téléchargé sur IPFS: ${documentCid}`);
       }
-
-      // 1. Construct metadata JSON
-      const projectMetadata = {
-        name: formData.name,
-        description: formData.description,
-        location: formData.location,
-        tonnage: parseInt(formData.tonnage),
-        vintage: parseInt(formData.vintage),
-        imageCid: imageCid, // Include image CID in metadata
-        documentCid: documentCid, // Include document CID in metadata
-      };
-
-      // 2. Upload metadata JSON to IPFS
+      const projectMetadata = { name: formData.name, description: formData.description, location: formData.location, tonnage: parseInt(formData.tonnage), vintage: parseInt(formData.vintage), imageCid: imageCid, documentCid: documentCid };
       toast.info("Téléchargement des métadonnées du projet sur IPFS...");
       const metadataCid = await ipfsService.uploadJsonToIpfs(projectMetadata);
       toast.success(`Métadonnées du projet téléchargées sur IPFS: ${metadataCid}`);
-
-      const fee = 10; 
-
+      const fee = 10;
       toast.info("Vérification de la connexion portefeuille...");
       if (!isConnected || !accountId) {
         toast.error("La session du portefeuille a peut-être expiré. Veuillez réessayer.");
         throw new Error("Wallet session may have timed out during IPFS upload.");
       }
       toast.success("Connexion portefeuille active.");
-
       const transactionId = await escrowService.submitProject(accountId, metadataCid, fee);
       toast.success("Transaction Hedera réussie !");
-
-      const projectData = {
-          name: formData.name,
-          description: formData.description,
-          location: formData.location,
-          tonnage: parseInt(formData.tonnage),
-          vintage: parseInt(formData.vintage),
-          projectId: transactionId,
-          metadata_cid: metadataCid, // Store the CID in your backend as well
-          image_cid: imageCid, // Store image CID in backend
-          document_cid: documentCid, // Store document CID in backend
-      };
-
+      const projectData = { name: formData.name, description: formData.description, location: formData.location, tonnage: parseInt(formData.tonnage), vintage: parseInt(formData.vintage), projectId: transactionId, metadata_cid: metadataCid, image_cid: imageCid, document_cid: documentCid };
       await dispatch(addProject(projectData));
       toast.success(`Projet soumis pour vérification !`);
-      dispatch(getProjects()); // Refresh the projects list
+      dispatch(getProjects());
       setFormData({ name: '', description: '', location: '', tonnage: '', vintage: '2024' });
       setIsDialogOpen(false);
-
     } catch (error: any) {
       const errorMessage = error.message || "An unknown error occurred.";
       console.error("Error submitting project:", error);
-      toast.error("Erreur lors de la soumission:", {
-        description: errorMessage,
-      });
+      toast.error("Erreur lors de la soumission:", { description: errorMessage });
     }
   };
 
   return (
     <div className="space-y-6">
-      {!isConnected && (
-        <WalletAlert onConnect={connect} />
-      )}
+      {!isConnected && <WalletAlert onConnect={connect} />}
 
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl text-gray-900">Dashboard Vendeur</h1>
           <p className="text-gray-600">Gérez vos projets et crédits carbone</p>
         </div>
-        <Button 
-          className="bg-emerald-600 hover:bg-emerald-700 text-white"
-          onClick={() => setIsDialogOpen(true)}
-        >
+        <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setIsDialogOpen(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Nouveau Projet
         </Button>
-        
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent>
             <DialogHeader>
@@ -195,108 +162,109 @@ export function SellerDashboard() {
         </Dialog>
       </div>
 
+      {/* Stats Section */}
+      <div className="grid md:grid-cols-4 gap-4">
+        <Card 
+          className={`p-6 cursor-pointer transition-all ${activeProjectFilter === 'PENDING' ? 'ring-2 ring-yellow-500' : 'hover:shadow-md'}`}
+          onClick={() => setActiveProjectFilter('PENDING')}
+        >
+          <div className="flex items-center justify-between">
+            <div><p className="text-sm text-gray-500">Projets en Attente</p><p className="text-2xl text-gray-900">{pendingProjects.length}</p></div>
+            <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center"><Clock className="w-6 h-6 text-yellow-600" /></div>
+          </div>
+        </Card>
+        <Card 
+          className={`p-6 cursor-pointer transition-all ${activeProjectFilter === 'APPROVED' ? 'ring-2 ring-emerald-500' : 'hover:shadow-md'}`}
+          onClick={() => setActiveProjectFilter('APPROVED')}
+        >
+          <div className="flex items-center justify-between">
+            <div><p className="text-sm text-gray-500">Projets Approuvés</p><p className="text-2xl text-gray-900">{approvedProjects.length}</p></div>
+            <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center"><Check className="w-6 h-6 text-emerald-600" /></div>
+          </div>
+        </Card>
+        <Card 
+          className={`p-6 cursor-pointer transition-all ${activeProjectFilter === 'REJECTED' ? 'ring-2 ring-red-500' : 'hover:shadow-md'}`}
+          onClick={() => setActiveProjectFilter('REJECTED')}
+        >
+          <div className="flex items-center justify-between">
+            <div><p className="text-sm text-gray-500">Projets Rejetés</p><p className="text-2xl text-gray-900">{rejectedProjects.length}</p></div>
+            <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center"><XCircle className="w-6 h-6 text-red-600" /></div>
+          </div>
+        </Card>
+        <Card className="p-6 bg-gray-50">
+          <div className="flex items-center justify-between">
+            <div><p className="text-sm text-gray-500">Crédits en Vente</p><p className="text-2xl text-gray-900">{myActiveListings.length}</p></div>
+            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center"><ShoppingCart className="w-6 h-6 text-purple-600" /></div>
+          </div>
+        </Card>
+      </div>
+
       {/* Projects Section */}
       <div className="space-y-4">
-        <h2 className="text-2xl text-gray-900">Mes Projets</h2>
-        <Tabs defaultValue="all" className="space-y-4">
-            <TabsList>
-            <TabsTrigger value="all">Tous ({myProjects.length})</TabsTrigger>
-            <TabsTrigger value="pending">En Attente ({pendingProjects.length})</TabsTrigger>
-            <TabsTrigger value="approved">Approuvés ({approvedProjects.length})</TabsTrigger>
-            <TabsTrigger value="rejected">Rejetés ({rejectedProjects.length})</TabsTrigger>
-            </TabsList>
-            <TabsContent value="all" key="all-projects-content" className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {isLoading ? (
-                <p>Chargement des projets...</p>
-            ) : myProjects.length === 0 ? (
-                <p>Aucun projet trouvé.</p>
-            ) : (
-                myProjects.map(project => (
-                    <ProjectCard key={project.id} project={project} />
-                ))
-            )}
-            </TabsContent>
-            <TabsContent value="pending" key="pending-projects-content" className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {isLoading ? (
-                <p>Chargement des projets en attente...</p>
-            ) : pendingProjects.length === 0 ? (
-                <p>Aucun projet en attente.</p>
-            ) : (
-                pendingProjects.map(project => (
-                    <ProjectCard key={project.id} project={project} />
-                ))
-            )}
-            </TabsContent>
-            <TabsContent value="approved" key="approved-projects-content" className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {isLoading ? (
-                <p>Chargement des projets approuvés...</p>
-            ) : approvedProjects.length === 0 ? (
-                <p>Aucun projet approuvé.</p>
-            ) : (
-                approvedProjects.map(project => (
-                    <ProjectCard key={project.id} project={project} />
-                ))
-            )}
-            </TabsContent>
-            <TabsContent value="rejected" key="rejected-projects-content" className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {isLoading ? (
-                <p>Chargement des projets rejetés...</p>
-            ) : rejectedProjects.length === 0 ? (
-                <p>Aucun projet rejeté.</p>
-            ) : (
-                rejectedProjects.map(project => (
-                    <ProjectCard key={project.id} project={project} />
-                ))
-            )}
-            </TabsContent>
-        </Tabs>
+        <div className="flex justify-between items-center">
+            <h2 className="text-2xl text-gray-900">Mes Projets ({activeProjectFilter})</h2>
+            <Button variant="ghost" onClick={() => setActiveProjectFilter('ALL')} className={activeProjectFilter === 'ALL' ? 'text-emerald-600 font-bold' : 'text-gray-500'}>Voir tout ({myProjects.length})</Button>
+        </div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 min-h-[300px]">
+          {isLoading ? (
+            <div className="col-span-full flex justify-center items-center p-12"><Loader2 className="w-8 h-8 animate-spin"/></div>
+          ) : filteredProjects.length === 0 ? (
+            <div className="col-span-full text-center p-12"><p>Aucun projet dans cette catégorie.</p></div>
+          ) : (
+            filteredProjects.map(project => (
+              <ProjectCard key={project.id} project={project} />
+            ))
+          )}
+        </div>
       </div>
 
       {/* Carbon Credits Section */}
       <div className="space-y-4">
-        <div className="flex justify-between items-center">
-            <h2 className="text-2xl text-gray-900">Mes Crédits Carbone</h2>
+        <h2 className="text-2xl text-gray-900">Mes Crédits Carbone</h2>
+        
+        {/* Stats Cards / Filters for Credits */}
+        <div className="grid md:grid-cols-3 gap-4">
+          <Card 
+            className={`p-6 cursor-pointer transition-all ${activeCreditFilter === 'MINTED' ? 'ring-2 ring-blue-500' : 'hover:shadow-md'}`}
+            onClick={() => setActiveCreditFilter('MINTED')}
+          >
+            <div className="flex items-center justify-between">
+              <div><p className="text-sm text-gray-500">Crédits Disponibles</p><p className="text-2xl text-gray-900">{mintedCredits.length}</p></div>
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center"><Leaf className="w-6 h-6 text-blue-600" /></div>
+            </div>
+          </Card>
+          <Card 
+            className={`p-6 cursor-pointer transition-all ${activeCreditFilter === 'LISTED' ? 'ring-2 ring-yellow-500' : 'hover:shadow-md'}`}
+            onClick={() => setActiveCreditFilter('LISTED')}
+          >
+            <div className="flex items-center justify-between">
+              <div><p className="text-sm text-gray-500">Crédits en Vente</p><p className="text-2xl text-gray-900">{myActiveListings.length}</p></div>
+              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center"><ShoppingCart className="w-6 h-6 text-yellow-600" /></div>
+            </div>
+          </Card>
+          <Card 
+            className={`p-6 cursor-pointer transition-all ${activeCreditFilter === 'SOLD' ? 'ring-2 ring-gray-500' : 'hover:shadow-md'}`}
+            onClick={() => setActiveCreditFilter('SOLD')}
+          >
+            <div className="flex items-center justify-between">
+              <div><p className="text-sm text-gray-500">Crédits Vendus</p><p className="text-2xl text-gray-900">{mySoldListings.length}</p></div>
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center"><Check className="w-6 h-6 text-gray-600" /></div>
+            </div>
+          </Card>
         </div>
-        <Tabs defaultValue="minted" className="space-y-4">
-            <TabsList>
-                <TabsTrigger value="minted">Disponibles ({mintedCredits.length})</TabsTrigger>
-                <TabsTrigger value="listed">En Vente ({myActiveListings.length})</TabsTrigger>
-                <TabsTrigger value="sold">Vendus ({mySoldListings.length})</TabsTrigger>
-            </TabsList>
-            <TabsContent value="minted" className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {isLoading ? (
-                    <p>Chargement des crédits disponibles...</p>
-                ) : mintedCredits.length === 0 ? (
-                    <p>Aucun crédit disponible.</p>
-                ) : (
-                    mintedCredits.map(credit => (
-                        <CreditCard key={credit.id} credit={credit} />
-                    ))
-                )}
-            </TabsContent>
-            <TabsContent value="listed" className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {isLoading ? (
-                    <p>Chargement des crédits en vente...</p>
-                ) : myActiveListings.length === 0 ? (
-                    <p>Aucun crédit en vente.</p>
-                ) : (
-                    myActiveListings.map(listing => (
-                        <ListingCard key={listing.id} listing={listing} />
-                    ))
-                )}
-            </TabsContent>
-            <TabsContent value="sold" className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {isLoading ? (
-                    <p>Chargement des crédits vendus...</p>
-                ) : mySoldListings.length === 0 ? (
-                    <p>Aucun crédit vendu.</p>
-                ) : (
-                    mySoldListings.map(listing => (
-                        <CreditCard key={listing.id} credit={listing.credit} listingId={listing.id} />
-                    ))
-                )}
-            </TabsContent>
-        </Tabs>
+
+        {/* Filtered Credits Grid */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 min-h-[300px]">
+          {isLoading ? (
+            <div className="col-span-full flex justify-center items-center p-12"><Loader2 className="w-8 h-8 animate-spin"/></div>
+          ) : (
+            <>
+              {activeCreditFilter === 'MINTED' && (mintedCredits.length === 0 ? <p className="col-span-full text-center">Aucun crédit disponible.</p> : mintedCredits.map(c => <CreditCard key={c.id} credit={c} />))}
+              {activeCreditFilter === 'LISTED' && (myActiveListings.length === 0 ? <p className="col-span-full text-center">Aucun crédit en vente.</p> : myActiveListings.map(l => <ListingCard key={l.id} listing={l} />))}
+              {activeCreditFilter === 'SOLD' && (mySoldListings.length === 0 ? <p className="col-span-full text-center">Aucun crédit vendu.</p> : mySoldListings.map(l => <CreditCard key={l.id} credit={l.credit} listingId={l.id} />))}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -313,36 +281,41 @@ const ProjectCard = React.memo(({ project }: { project: any }) => {
     };
 
     return (
-        <Card className="p-6 flex flex-col justify-between">
-        {project.image_cid && (
-            <img 
-                src={`https://ipfs.io/ipfs/${project.image_cid}`}
-                alt={project.name} 
-                className="w-full h-48 object-cover rounded-md mb-4"
-            />
-        )}
-        <div>
-            <div className="flex justify-between items-start">
-                <div>
-                <h3 className="text-lg font-semibold">{project.name}</h3>
-                <p className="text-sm text-gray-500">{project.location}</p>
-                </div>
-                <Badge className={getStatusColor(project.status)}>{project.status}</Badge>
+        <Card className="overflow-hidden hover:shadow-xl transition-shadow flex flex-col">
+            <div className="bg-gray-200 h-48 flex items-center justify-center">
+                {project.image_cid ? (
+                    <img 
+                        src={`https://ipfs.io/ipfs/${project.image_cid}`}
+                        alt={project.name} 
+                        className="w-full h-full object-cover"
+                    />
+                ) : (
+                    <span className="text-8xl">🌍</span>
+                )}
             </div>
-            <div className="mt-4">
-                <p>{project.description}</p>
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+            <div className="p-6 space-y-4 flex flex-col flex-grow">
                 <div>
-                    <p className="text-gray-500">Tonnage</p>
-                    <p>{project.tonnage} tCO₂</p>
+                    <div className="flex items-start justify-between mb-2">
+                        <h3 className="text-xl text-gray-900 mb-2">{project.name}</h3>
+                        <Badge className={getStatusColor(project.status)}>{project.status}</Badge>
+                    </div>
+                    <p className="text-sm text-gray-600 flex items-center gap-1">
+                        {/* Assuming location is available, if not, this can be removed */}
+                        {project.location}
+                    </p>
                 </div>
-                <div>
-                    <p className="text-gray-500">Vintage</p>
-                    <p>{project.vintage}</p>
+
+                <div className="flex items-center justify-between py-3 border-y border-gray-200 mt-auto">
+                    <div>
+                        <p className="text-xs text-gray-500">Tonnage</p>
+                        <p className="text-lg text-gray-900">{project.tonnage.toLocaleString()} t</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-xs text-gray-500">Vintage</p>
+                        <p className="text-lg text-gray-900">{project.vintage}</p>
+                    </div>
                 </div>
             </div>
-        </div>
         </Card>
     );
 });
@@ -353,26 +326,43 @@ const ListingCard = React.memo(({ listing }: { listing: Listing }) => {
     }
 
     return (
-        <Card className="p-6 flex flex-col justify-between bg-yellow-50 border-yellow-200">
-            {listing.credit.project.image_cid && (
-                <img 
-                    src={`https://ipfs.io/ipfs/${listing.credit.project.image_cid}`}
-                    alt={listing.credit.project.name} 
-                    className="w-full h-48 object-cover rounded-md mb-4"
-                />
-            )}
-            <div>
-                <div className="flex justify-between items-start">
-                    <h3 className="text-lg font-semibold text-gray-900">Crédit #{listing.credit.serial_number}</h3>
-                    <Badge className='bg-yellow-100 text-yellow-700'>EN VENTE</Badge>
+        <Card className="overflow-hidden hover:shadow-xl transition-shadow flex flex-col">
+            <div className="bg-gray-200 h-48 flex items-center justify-center">
+                {listing.credit.project.image_cid ? (
+                    <img 
+                        src={`https://ipfs.io/ipfs/${listing.credit.project.image_cid}`}
+                        alt={listing.credit.project.name} 
+                        className="w-full h-full object-cover"
+                    />
+                ) : (
+                    <span className="text-8xl">🌍</span>
+                )}
+            </div>
+            <div className="p-6 space-y-4 flex flex-col flex-grow">
+                <div>
+                    <div className="flex items-start justify-between mb-2">
+                        <h3 className="text-xl text-gray-900 mb-2">Crédit #{listing.credit.serial_number}</h3>
+                        <Badge className='bg-yellow-100 text-yellow-700'>EN VENTE</Badge>
+                    </div>
+                    <p className="text-sm text-gray-600 flex items-center gap-1">
+                        Projet: {listing.credit.project.name}
+                    </p>
                 </div>
-                <p className="text-sm text-gray-500 mt-1">Projet: {listing.credit.project.name}</p>
-            </div>
-            <div className="mt-4">
-                <p className="text-lg font-bold text-gray-900">{listing.price} HBAR</p>
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-                <Button onClick={handleWithdraw} variant="outline">Retirer</Button>
+
+                <div className="flex items-center justify-between py-3 border-y border-gray-200">
+                    <div>
+                        <p className="text-xs text-gray-500">Prix</p>
+                        <p className="text-lg text-gray-900">{listing.price} HBAR</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-xs text-gray-500">Tonnage</p>
+                        <p className="text-lg text-gray-900">{listing.credit.project.tonnage.toLocaleString()} t</p>
+                    </div>
+                </div>
+
+                <div className="mt-auto flex justify-end gap-2">
+                    <Button onClick={handleWithdraw} variant="outline">Retirer de la vente</Button>
+                </div>
             </div>
         </Card>
     );
@@ -381,11 +371,10 @@ const ListingCard = React.memo(({ listing }: { listing: Listing }) => {
 const CreditCard = React.memo(({ credit, listingId }: { credit: CarbonCredit, listingId?: number }) => {
     const dispatch = useDispatch<AppDispatch>();
     const { accountId } = useSelector(selectHashConnect);
-    const { myListings } = useSelector((state: RootState) => state.carbon); // Get myListings from Redux state
+    const { myListings } = useSelector((state: RootState) => state.carbon);
     const [isListingOpen, setIsListingOpen] = useState(false);
     const [price, setPrice] = useState('');
 
-    // Find the current listing to check its claimed status
     const currentListing = myListings.find(l => l.id === listingId);
     const isClaimed = currentListing?.claimed || false;
 
@@ -394,34 +383,22 @@ const CreditCard = React.memo(({ credit, listingId }: { credit: CarbonCredit, li
             toast.error("Veuillez connecter votre portefeuille.");
             return;
         }
-
         const parsedPrice = parseFloat(price);
         if (isNaN(parsedPrice) || parsedPrice <= 0) {
-            toast.error("Prix invalide", {
-                description: "Veuillez entrer un prix valide et supérieur à zéro.",
-            });
+            toast.error("Prix invalide", { description: "Veuillez entrer un prix valide et supérieur à zéro." });
             return;
         }
-
         try {
             toast.info("Veuillez approuver les transactions dans votre portefeuille pour lister le crédit...");
-            
-            await dispatch(listCredit({
-                creditId: credit.id,
-                serialNumber: credit.serial_number,
-                price: parsedPrice
-            })).unwrap();
-
+            await dispatch(listCredit({ creditId: credit.id, serialNumber: credit.serial_number, price: parsedPrice })).unwrap();
             toast.success("Crédit listé sur la marketplace avec succès !");
-            dispatch(getCarbonCredits()); // Refresh credits
-            dispatch(getMyListings()); // Refresh listings
+            dispatch(getCarbonCredits());
+            dispatch(getMyListings());
             setIsListingOpen(false);
         } catch (error: any) {
             const errorMessage = error.message || "An unknown error occurred.";
             console.error("Error listing credit:", error);
-            toast.error("Erreur lors de la mise en vente:", {
-                description: errorMessage,
-            });
+            toast.error("Erreur lors de la mise en vente:", { description: errorMessage });
         }
     }
 
@@ -434,56 +411,64 @@ const CreditCard = React.memo(({ credit, listingId }: { credit: CarbonCredit, li
             toast.info("Veuillez approuver la transaction dans votre portefeuille pour réclamer les fonds...");
             await dispatch(claimProceeds({ listingId, serialNumber: credit.serial_number })).unwrap();
             toast.success("Fonds réclamés avec succès !");
-            dispatch(getMyListings()); // Refresh listings to update claimed status
+            dispatch(getMyListings());
         } catch (error: any) {
-            const errorMessage = error.message || "Une erreur inconnue est survenue.";
+            const errorMessage = error.message || "An unknown error occurred.";
             console.error("Error claiming proceeds:", error);
-            toast.error("Erreur lors de la réclamation des fonds:", {
-                description: errorMessage,
-            });
+            toast.error("Erreur lors de la réclamation des fonds:", { description: errorMessage });
         }
     }
 
     return (
         <>
-            <Card className="p-6 flex flex-col justify-between">
-                {credit.project.image_cid && (
-                    <img 
-                        src={`https://ipfs.io/ipfs/${credit.project.image_cid}`}
-                        alt={credit.project.name} 
-                        className="w-full h-48 object-cover rounded-md mb-4"
-                    />
-                )}
-                <div>
-                    <div className="flex justify-between items-start">
-                        <h3 className="text-lg font-semibold text-gray-900">Crédit #{credit.serial_number}</h3>
-                        <Badge className={
-                            credit.status === 'MINTED' ? 'bg-blue-100 text-blue-700' :
-                            credit.status === 'LISTED' ? 'bg-yellow-100 text-yellow-700' :
-                            'bg-gray-100 text-gray-700'
-                        }>{credit.status}</Badge>
-                    </div>
-                    <p className="text-sm text-gray-500 mt-1">Projet: {credit.project.name}</p>
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                        <p className="text-gray-500">Token ID</p>
-                        <p className="font-mono text-xs">{credit.hedera_token_id}</p>
-                    </div>
-                    <div>
-                        <p className="text-gray-500">Tonnage</p>
-                        <p>{credit.project.tonnage} tCO₂</p>
-                    </div>
-                </div>
-                <div className="mt-4 flex justify-end gap-2">
-                    {credit.status === 'MINTED' && (
-                        <Button onClick={() => setIsListingOpen(true)}>Mettre en vente</Button>
+            <Card className="overflow-hidden hover:shadow-xl transition-shadow flex flex-col">
+                <div className="bg-gray-200 h-48 flex items-center justify-center">
+                    {credit.project.image_cid ? (
+                        <img 
+                            src={`https://ipfs.io/ipfs/${credit.project.image_cid}`}
+                            alt={credit.project.name} 
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <span className="text-8xl">🌍</span>
                     )}
-                    {credit.status === 'SOLD' && (
-                        <Button onClick={handleClaimProceeds} disabled={isClaimed}>
-                            {isClaimed ? "Fonds récupérés" : "Réclamer les fonds"}
-                        </Button>
-                    )}
+                </div>
+                <div className="p-6 space-y-4 flex flex-col flex-grow">
+                    <div>
+                        <div className="flex items-start justify-between mb-2">
+                            <h3 className="text-xl text-gray-900 mb-2">Crédit #{credit.serial_number}</h3>
+                            <Badge className={
+                                credit.status === 'MINTED' ? 'bg-blue-100 text-blue-700' :
+                                credit.status === 'LISTED' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-gray-100 text-gray-700'
+                            }>{credit.status}</Badge>
+                        </div>
+                        <p className="text-sm text-gray-600 flex items-center gap-1">
+                           Projet: {credit.project.name}
+                        </p>
+                    </div>
+
+                    <div className="flex items-center justify-between py-3 border-y border-gray-200">
+                        <div>
+                            <p className="text-xs text-gray-500">Token ID</p>
+                            <p className="text-sm font-mono">{credit.hedera_token_id}</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-xs text-gray-500">Tonnage</p>
+                            <p className="text-lg text-gray-900">{credit.project.tonnage.toLocaleString()} t</p>
+                        </div>
+                    </div>
+
+                    <div className="mt-auto flex justify-end gap-2">
+                        {credit.status === 'MINTED' && (
+                            <Button onClick={() => setIsListingOpen(true)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">Mettre en vente</Button>
+                        )}
+                        {credit.status === 'SOLD' && (
+                            <Button onClick={handleClaimProceeds} disabled={isClaimed} className="w-full">
+                                {isClaimed ? "Fonds récupérés" : "Réclamer les fonds"}
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </Card>
             <Dialog open={isListingOpen} onOpenChange={setIsListingOpen}>

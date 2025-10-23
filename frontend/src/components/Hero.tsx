@@ -40,7 +40,7 @@ export function Hero() {
         className="relative pt-32 pb-20 overflow-hidden"
         style={{
           backgroundImage: `
-            linear-gradient(to bottom right, rgba(236, 253, 245, 0.8), rgba(240, 253, 250, 0.8), rgba(239, 246, 255, 0.8)),
+            linear-gradient(to bottom right, rgba(236, 253, 245, 0.6), rgba(240, 253, 250, 0.6), rgba(239, 246, 255, 0.6)),
             url(https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=1920)
           `,
           backgroundSize: 'cover',

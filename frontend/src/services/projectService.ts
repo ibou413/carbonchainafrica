@@ -12,12 +12,12 @@ const getProjects = async (token: string) => {
   return response.data;
 };
 
-const getActiveListings = async (token: string) => {
-  const config = {
+const getActiveListings = async (token?: string) => {
+  const config = token ? {
     headers: {
       Authorization: `Bearer ${token}`,
     },
-  };
+  } : {};
   const response = await axios.get(`${API_BASE_URL}/listings/`, config);
   return response.data;
 };

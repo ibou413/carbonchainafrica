@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { getVerifierDashboardProjects } from '../../store/carbonSlice';
@@ -10,26 +10,19 @@ import { Badge } from '../ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
-import { WalletAlert } from '../WalletAlert';
-import { CheckCircle, XCircle, TrendingUp, Calendar, MapPin, Clock, FileText } from 'lucide-react';
+import { CheckCircle, XCircle, TrendingUp, Calendar, MapPin, Clock, FileText, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-
-
 
 export function VerifierDashboard() {
   const dispatch = useDispatch<AppDispatch>();
   const { currentUser } = useSelector((state: RootState) => state.user);
-  const { projects } = useSelector((state: RootState) => state.carbon);
+  const { projects, isLoading } = useSelector((state: RootState) => state.carbon);
 
-  console.log("Verifier Dashboard - Projects from store:", projects);
-  console.log("Verifier Dashboard - Current user from store:", currentUser);
+  const [activeFilter, setActiveFilter] = useState<'PENDING' | 'APPROVED' | 'REJECTED'>('PENDING');
 
   useEffect(() => {
     if (currentUser) {
-      dispatch(getVerifierDashboardProjects())
-        .unwrap()
-        .then(payload => console.log('getVerifierDashboardProjects fulfilled payload:', payload))
-        .catch(error => console.error('getVerifierDashboardProjects rejected error:', error));
+      dispatch(getVerifierDashboardProjects());
     }
   }, [dispatch, currentUser]);
 
@@ -38,55 +31,46 @@ export function VerifierDashboard() {
   const [action, setAction] = useState<'approve' | 'reject'>('approve');
   const [notes, setNotes] = useState('');
 
-  const pendingProjects = projects.filter(p => p.status === 'PENDING');
-  const projectsHandledByVerifier = projects.filter(p => p.verifier?.username === currentUser?.user?.username);
-  const approvedProjects = projectsHandledByVerifier.filter(p => p.status === 'APPROVED');
-  const rejectedProjects = projectsHandledByVerifier.filter(p => p.status === 'REJECTED');
+  const pendingProjects = useMemo(() => projects.filter(p => p.status === 'PENDING'), [projects]);
+  const projectsHandledByVerifier = useMemo(() => projects.filter(p => p.verifier?.username === currentUser?.user?.username), [projects, currentUser]);
+  const approvedProjects = useMemo(() => projectsHandledByVerifier.filter(p => p.status === 'APPROVED'), [projectsHandledByVerifier]);
+  const rejectedProjects = useMemo(() => projectsHandledByVerifier.filter(p => p.status === 'REJECTED'), [projectsHandledByVerifier]);
 
-  console.log("Verifier Dashboard - Pending projects:", pendingProjects);
-  console.log("Verifier Dashboard - Projects handled by verifier:", projectsHandledByVerifier);
+  const filteredProjects = useMemo(() => {
+    switch (activeFilter) {
+      case 'APPROVED':
+        return approvedProjects;
+      case 'REJECTED':
+        return rejectedProjects;
+      case 'PENDING':
+      default:
+        return pendingProjects;
+    }
+  }, [activeFilter, pendingProjects, approvedProjects, rejectedProjects]);
 
   const handleVerify = async () => {
-    console.log("handleVerify function called.");
-
-    if (!selectedProject) {
-      console.error("Verification stopped: No project selected.");
-      return;
-    }
-    console.log("Selected project for verification:", selectedProject);
-
+    if (!selectedProject) return;
     const token = currentUser?.access;
     if (!token) {
-      console.error("Verification stopped: User token not found.");
       toast.error("Session invalide. Veuillez vous reconnecter.");
       return;
     }
-    console.log("User token found.");
-
     const dbProjectId = selectedProject.id;
     const submitTxId = selectedProject.projectId;
     if (!submitTxId) {
-        console.error(`Verification stopped: Project ID (Transaction ID) is missing for project:`, selectedProject);
         toast.error("L'ID de transaction de la soumission est introuvable pour ce projet.");
         return;
     }
-    console.log(`Found DB Project ID: ${dbProjectId} and Transaction ID: ${submitTxId} for action: ${action}`);
-
     try {
       if (action === 'approve') {
-        console.log("Dispatching approveProject...");
         await dispatch(approveProject({ dbProjectId, submitTransactionId: submitTxId, token })).unwrap();
       } else {
-        console.log("Dispatching rejectProject...");
         await dispatch(rejectProject({ dbProjectId, submitTransactionId: submitTxId, token })).unwrap();
       }
-
-      console.log("Verification action dispatched successfully.");
       setDialogOpen(false);
       setSelectedProject(null);
       setNotes('');
       dispatch(getVerifierDashboardProjects());
-
     } catch (error: any) {
       console.error("Verification error during dispatch:", error);
     }
@@ -98,18 +82,8 @@ export function VerifierDashboard() {
     setDialogOpen(true);
   };
 
-  if (!currentUser) {
-    return (
-      <div className="text-center">
-        <p>Veuillez vous connecter pour accéder à votre tableau de bord.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-
-      {/* Header */}
       <div>
         <h1 className="text-3xl text-gray-900">Dashboard Vérificateur</h1>
         <p className="text-gray-600">Vérifiez et certifiez les projets carbone</p>
@@ -117,7 +91,10 @@ export function VerifierDashboard() {
 
       {/* Stats */}
       <div className="grid md:grid-cols-4 gap-4">
-        <Card className="p-6">
+        <Card 
+          className={`p-6 cursor-pointer transition-all ${activeFilter === 'PENDING' ? 'ring-2 ring-yellow-500' : 'hover:shadow-md'}`}
+          onClick={() => setActiveFilter('PENDING')}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">En Attente</p>
@@ -128,7 +105,10 @@ export function VerifierDashboard() {
             </div>
           </div>
         </Card>
-        <Card className="p-6">
+        <Card 
+          className={`p-6 cursor-pointer transition-all ${activeFilter === 'APPROVED' ? 'ring-2 ring-emerald-500' : 'hover:shadow-md'}`}
+          onClick={() => setActiveFilter('APPROVED')}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Approuvés</p>
@@ -139,7 +119,10 @@ export function VerifierDashboard() {
             </div>
           </div>
         </Card>
-        <Card className="p-6">
+        <Card 
+          className={`p-6 cursor-pointer transition-all ${activeFilter === 'REJECTED' ? 'ring-2 ring-red-500' : 'hover:shadow-md'}`}
+          onClick={() => setActiveFilter('REJECTED')}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Rejetés</p>
@@ -150,7 +133,7 @@ export function VerifierDashboard() {
             </div>
           </div>
         </Card>
-        <Card className="p-6">
+        <Card className="p-6 bg-gray-50">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Tonnage Approuvé</p>
@@ -165,89 +148,83 @@ export function VerifierDashboard() {
         </Card>
       </div>
 
-      {/* Pending Projects */}
       <div className="space-y-4">
-        <h2 className="text-2xl text-gray-900">Projets en Attente de Vérification</h2>
-        {pendingProjects.length === 0 ? (
+        <h2 className="text-2xl text-gray-900">Projets - {activeFilter}</h2>
+        {isLoading ? (
+            <div className="col-span-full flex justify-center items-center p-12">
+              <Loader2 className="w-12 h-12 text-emerald-600 animate-spin" />
+            </div>
+        ) : filteredProjects.length === 0 ? (
           <Card className="p-12 text-center">
-            <p className="text-gray-600">Aucun projet en attente de vérification</p>
+            <p className="text-gray-600">Aucun projet dans cette catégorie.</p>
           </Card>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {pendingProjects.map(project => (
-              <Card key={project.id} className="p-6">
-              {project.image_cid && (
-                <img 
-                  src={`https://ipfs.io/ipfs/${project.image_cid}`}
-                  alt={project.name} 
-                  className="w-full h-48 object-cover rounded-md mb-4"
-                />
-              )}
-              <div className="flex flex-col lg:flex-row gap-6">
-                <div className="flex-1 space-y-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-gray-900">{project.name}</h3>
-                      <p className="text-gray-600 mt-1">{project.description}</p>
-                    </div>
-                    <Badge className="bg-yellow-100 text-yellow-700">PENDING</Badge>
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                    <div className="flex items-center gap-1">
-                      <MapPin className="w-4 h-4" />
-                      {project.location}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <TrendingUp className="w-4 h-4" />
-                      {project.tonnage.toLocaleString()} tonnes CO₂
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      Vintage {project.vintage}
-                    </div>
-                    {project.document_cid && (
-                        <a 
-                            href={`https://ipfs.io/ipfs/${project.document_cid}`}
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-blue-600 hover:underline"
-                        >
-                            <FileText className="w-4 h-4" />
-                            Voir Document
-                        </a>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredProjects.map(project => (
+              <Card key={project.id} className="overflow-hidden hover:shadow-xl transition-shadow flex flex-col">
+                <div className="bg-gray-200 h-48 flex items-center justify-center">
+                    {project.image_cid ? (
+                        <img 
+                            src={`https://ipfs.io/ipfs/${project.image_cid}`}
+                            alt={project.name} 
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <span className="text-8xl">🌍</span>
                     )}
-                  </div>
-
-                  <div className="text-sm text-gray-500">
-                    Soumis par: <span className="text-gray-700">{project.owner.username}</span>
-                    <span className="mx-2">•</span>
-                    {new Date(project.created_at).toLocaleDateString('fr-FR')}
-                  </div>
                 </div>
+                <div className="p-6 space-y-4 flex flex-col flex-grow">
+                    <div>
+                        <div className="flex items-start justify-between mb-2">
+                            <h3 className="text-xl text-gray-900 mb-2">{project.name}</h3>
+                            <Badge className={
+                                project.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
+                                project.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-red-100 text-red-700'
+                            }>{project.status}</Badge>
+                        </div>
+                        <p className="text-sm text-gray-600 flex items-center gap-1">
+                            <MapPin className="w-4 h-4" /> {project.location}
+                        </p>
+                    </div>
 
-                <div className="lg:w-48 flex flex-col gap-2">
-                  <Button 
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                    onClick={() => openDialog(project, 'approve')}
-                    disabled={!currentUser}
-                  >
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Approuver
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="border-red-600 text-red-600 hover:bg-red-50"
-                    onClick={() => openDialog(project, 'reject')}
-                    disabled={!currentUser}
-                  >
-                    <XCircle className="w-4 h-4 mr-2" />
-                    Rejeter
-                  </Button>
+                    <div className="flex items-center justify-between py-3 border-y border-gray-200">
+                        <div>
+                            <p className="text-xs text-gray-500">Tonnage</p>
+                            <p className="text-lg text-gray-900">{project.tonnage.toLocaleString()} t</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-xs text-gray-500">Vintage</p>
+                            <p className="text-lg text-gray-900">{project.vintage}</p>
+                        </div>
+                    </div>
+                    
+                    <div className="text-xs text-gray-500">
+                      Soumis par: <span className="font-medium text-gray-700">{project.owner.username}</span>
+                    </div>
+
+                    {project.status === 'PENDING' && (
+                        <div className="mt-auto flex flex-col gap-2">
+                            <Button 
+                                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                                onClick={() => openDialog(project, 'approve')}
+                            >
+                                <CheckCircle className="w-4 h-4 mr-2" />
+                                Approuver
+                            </Button>
+                            <Button 
+                                variant="outline" 
+                                className="w-full border-red-600 text-red-600 hover:bg-red-50"
+                                onClick={() => openDialog(project, 'reject')}
+                            >
+                                <XCircle className="w-4 h-4 mr-2" />
+                                Rejeter
+                            </Button>
+                        </div>
+                    )}
                 </div>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            ))}
           </div>
         )}
       </div>

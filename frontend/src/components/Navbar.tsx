@@ -19,7 +19,6 @@ export function Navbar() {
   }, []);
 
   const navLinks = [
-    { name: 'Accueil', href: '/' },
     { name: 'Marketplace', href: '/marketplace' },
     { name: 'Comment ça marche', href: '/#how-it-works' },
     { name: 'Crédits Vedette', href: '/#featured' }
@@ -45,24 +44,31 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-all group" title="Retour à l'accueil" legacyBehavior>
-            <>
-              <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Leaf className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <span className="text-xl text-gray-900 group-hover:text-emerald-600 transition-colors">CarbonChain Africa</span>
-              </div>
-            </>
+          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-all group" title="Retour à l'accueil">
+            <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Leaf className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <span className="text-xl text-gray-900 group-hover:text-emerald-600 transition-colors">CarbonChain Africa</span>
+            </div>
           </Link>
           {/* Desktop Navigation */}
           <div className="flex-1 flex items-center justify-center">
             <div className="hidden lg:flex items-center gap-8">
-              {visibleNavLinks.map((link) => (
-                <Link key={link.name} href={link.href} className="text-gray-600 hover:text-emerald-600 transition-colors">
-                  {link.name}
-                </Link>
-              ))}
+              {visibleNavLinks.map((link) => {
+                if (link.name === 'Marketplace') {
+                  return (
+                    <Button asChild key={link.name} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                      <Link href={link.href}>{link.name}</Link>
+                    </Button>
+                  );
+                }
+                return (
+                  <Link key={link.name} href={link.href} className="text-gray-600 hover:text-emerald-600 transition-colors">
+                    {link.name}
+                  </Link>
+                );
+              })}
             </div>
           </div>
 
@@ -115,11 +121,20 @@ export function Navbar() {
         {isOpen && (
           <div className="lg:hidden py-4 border-t border-gray-200">
             <div className="flex flex-col space-y-4">
-              {visibleNavLinks.map((link) => (
-                <Link key={link.name} href={link.href} className="text-gray-600 hover:text-emerald-600 transition-colors" onClick={() => setIsOpen(false)}>
-                  {link.name}
-                </Link>
-              ))}
+              {visibleNavLinks.map((link) => {
+                if (link.name === 'Marketplace') {
+                  return (
+                    <Button asChild key={link.name} className="bg-emerald-600 hover:bg-emerald-700 text-white w-full" onClick={() => setIsOpen(false)}>
+                      <Link href={link.href}>{link.name}</Link>
+                    </Button>
+                  );
+                }
+                return (
+                  <Link key={link.name} href={link.href} className="text-gray-600 hover:text-emerald-600 transition-colors" onClick={() => setIsOpen(false)}>
+                    {link.name}
+                  </Link>
+                );
+              })}
               <div className="flex flex-col gap-2 pt-4 border-t border-gray-200">
                 {isMounted && (
                   currentUser ? (

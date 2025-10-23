@@ -1,72 +1,67 @@
+import React, { useEffect, useMemo } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { ShoppingBag, MapPin, TrendingUp, Filter } from 'lucide-react';
+import { ShoppingBag, MapPin, TrendingUp, Filter, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/router';
-import { useSelector } from 'react-redux';
-import { RootState } from '../store';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState, AppDispatch } from '../store';
+import { getActiveListings, buyCredit, Listing } from '../store/carbonSlice';
+import { toast } from 'sonner';
 
 export function Marketplace() {
   const { currentUser } = useSelector((state: RootState) => state.user);
+  const { listings, isLoading } = useSelector((state: RootState) => state.carbon);
+  const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
 
-  const handleBuy = () => {
-    if (currentUser) {
-      router.push('/marketplace');
-    } else {
+  useEffect(() => {
+    dispatch(getActiveListings());
+  }, [dispatch]);
+
+  const handleBuy = (listing: Listing) => {
+    if (!currentUser) {
+      toast.error("Veuillez vous connecter pour acheter un crédit.");
       router.push('/login');
+      return;
     }
+    
+    toast.info("Achat en cours...", {
+      description: "Veuillez approuver la transaction dans votre portefeuille.",
+    });
+
+    dispatch(buyCredit(listing));
   };
 
-  const categories = [
-    { name: "Tous", count: 45, active: true },
-    { name: "Reforestation", count: 18 },
-    { name: "Énergie Renouvelable", count: 12 },
-    { name: "Agriculture Durable", count: 10 },
-    { name: "Cuisinières Propres", count: 5 }
-  ];
-
-  const listings = [
-    {
-      id: 1,
-      name: "Reforestation Congo Basin",
-      location: "RDC, Équateur",
-      price: 11.50,
-      available: 25000,
-      image: "🌲",
-      category: "Reforestation",
-      verified: true
-    },
-    {
-      id: 2,
-      name: "Parc Éolien Sahara",
-      location: "Maroc, Laayoune",
-      price: 13.20,
-      available: 18000,
-      image: "💨",
-      category: "Énergie",
-      verified: true
-    },
-    {
-      id: 3,
-      name: "Agriculture Régénérative",
-      location: "Côte d'Ivoire, Bouaké",
-      price: 9.80,
-      available: 12000,
-      image: "🌾",
-      category: "Agriculture",
-      verified: true
-    },
-    {
-      id: 4,
-      name: "Cuisinières Efficientes",
-      location: "Éthiopie, Addis-Abeba",
-      price: 8.50,
-      available: 8000,
-      image: "🔥",
-      category: "Énergie",
-      verified: true
+  // Calculate stats dynamically
+  const stats = useMemo(() => {
+    if (!listings || listings.length === 0) {
+      return {
+        activeProjects: 0,
+        availableTons: 0,
+        avgPrice: 0,
+      };
     }
+
+    const activeProjectIds = new Set(listings.map(l => l.credit.project.id));
+    const availableTons = listings.reduce((sum, l) => sum + l.credit.project.tonnage, 0);
+    const totalPrice = listings.reduce((sum, l) => sum + parseFloat(l.price), 0);
+    const avgPrice = totalPrice / listings.length;
+
+    return {
+      activeProjects: activeProjectIds.size,
+      availableTons,
+      avgPrice,
+    };
+  }, [listings]);
+
+  // Static for now, but count is dynamic
+  const categories = [
+    { name: "Tous", count: listings.length, active: true },
+    { name: "Reforestation", count: 0 },
+    { name: "Énergie Renouvelable", count: 0 },
+    { name: "Agriculture Durable", count: 0 },
+    { name: "Cuisinières Propres", count: 0 }
   ];
 
   return (
@@ -105,51 +100,65 @@ export function Marketplace() {
         </div>
 
         {/* Listings Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {listings.map((listing) => (
-            <Card key={listing.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-              {/* Image */}
-              <div className="bg-gradient-to-br from-emerald-400 to-teal-400 h-40 flex items-center justify-center">
-                <span className="text-6xl">{listing.image}</span>
-              </div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 min-h-[300px]">
+          {isLoading ? (
+            <div className="col-span-full flex justify-center items-center">
+              <Loader2 className="w-12 h-12 text-emerald-600 animate-spin" />
+            </div>
+          ) : listings.length === 0 ? (
+            <div className="col-span-full text-center text-gray-500">
+              <p>Aucune annonce disponible pour le moment.</p>
+            </div>
+          ) : (
+            listings.map((listing) => (
+              <Card key={listing.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                <div className="bg-gray-200 h-40 flex items-center justify-center">
+                  {listing.credit.project.image_cid ? (
+                    <img 
+                      src={`https://ipfs.io/ipfs/${listing.credit.project.image_cid}`}
+                      alt={listing.credit.project.name} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-6xl">🌍</span>
+                  )}
+                </div>
 
-              {/* Content */}
-              <div className="p-4 space-y-3">
-                <div>
-                  {listing.verified && (
+                <div className="p-4 space-y-3">
+                  <div>
                     <Badge className="bg-emerald-100 text-emerald-700 mb-2">
                       ✓ Vérifié
                     </Badge>
-                  )}
-                  <h3 className="text-lg text-gray-900">{listing.name}</h3>
-                  <p className="text-sm text-gray-600 flex items-center gap-1">
-                    <MapPin className="w-3 h-3" />
-                    {listing.location}
-                  </p>
-                </div>
-
-                <div className="border-t border-gray-200 pt-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-gray-500">Prix/tonne</span>
-                    <span className="text-lg text-gray-900">${listing.price}</span>
+                    <h3 className="text-lg text-gray-900">{listing.credit.project.name}</h3>
+                    <p className="text-sm text-gray-600 flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      {listing.credit.project.location}
+                    </p>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-500">Disponible</span>
-                    <span className="text-sm text-gray-700">{listing.available.toLocaleString()} t</span>
-                  </div>
-                </div>
 
-                <Button 
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                  size="sm"
-                  onClick={handleBuy}
-                >
-                  <ShoppingBag className="w-4 h-4 mr-2" />
-                  Acheter
-                </Button>
-              </div>
-            </Card>
-          ))}
+                  <div className="border-t border-gray-200 pt-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-gray-500">Prix</span>
+                      <span className="text-lg text-gray-900">{listing.price} HBAR</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Disponible</span>
+                      <span className="text-sm text-gray-700">{listing.credit.project.tonnage.toLocaleString()} t</span>
+                    </div>
+                  </div>
+
+                  <Button 
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                    size="sm"
+                    onClick={() => handleBuy(listing)}
+                  >
+                    <ShoppingBag className="w-4 h-4 mr-2" />
+                    Acheter
+                  </Button>
+                </div>
+              </Card>
+            ))
+          )}
         </div>
 
         {/* Stats Bar */}
@@ -157,19 +166,23 @@ export function Marketplace() {
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 text-emerald-600 mb-2">
               <TrendingUp className="w-5 h-5" />
-              <span className="text-3xl">45</span>
+              <span className="text-3xl">{stats.activeProjects}</span>
             </div>
             <p className="text-sm text-gray-600">Projets Actifs</p>
           </div>
           <div className="text-center border-x border-emerald-200">
             <div className="flex items-center justify-center gap-2 text-emerald-600 mb-2">
-              <span className="text-3xl">1.2M</span>
+              <span className="text-3xl">
+                {stats.availableTons > 1000000 
+                  ? `${(stats.availableTons / 1000000).toFixed(1)}M` 
+                  : stats.availableTons.toLocaleString()}
+              </span>
             </div>
             <p className="text-sm text-gray-600">Tonnes CO₂ Disponibles</p>
           </div>
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 text-emerald-600 mb-2">
-              <span className="text-3xl">$10.5</span>
+              <span className="text-3xl">{stats.avgPrice.toFixed(2)} HBAR</span>
             </div>
             <p className="text-sm text-gray-600">Prix Moyen/tonne</p>
           </div>

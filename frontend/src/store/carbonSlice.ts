@@ -94,12 +94,7 @@ export const getActiveListings = createAsyncThunk(
   'carbon/getActiveListings',
   async (_, thunkAPI) => {
     try {
-      const state = thunkAPI.getState() as RootState;
-      const token = state.user.currentUser?.access;
-      if (!token) {
-        return thunkAPI.rejectWithValue('User not authenticated');
-      }
-      return await projectService.getActiveListings(token);
+      return await projectService.getActiveListings();
     } catch (error: any) {
       const message = (error.response && error.response.data && error.response.data.message) || error.message || error.toString();
       return thunkAPI.rejectWithValue(message);
@@ -414,9 +409,10 @@ const carbonSlice = createSlice({
         state.message = action.payload as string;
       })
       .addCase(buyCredit.pending, (state) => { state.isLoading = true; })
-      .addCase(buyCredit.fulfilled, (state, action: PayloadAction<any>) => {
+      .addCase(buyCredit.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.listings = state.listings.filter(l => l.id !== action.payload.listing_id);
+        // Use the ID from the original argument passed to the thunk for a reliable optimistic update
+        state.listings = state.listings.filter(l => l.id !== action.meta.arg.id);
       })
       .addCase(buyCredit.rejected, (state, action) => {
         state.isLoading = false;

@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { RootState } from '@/store';
 import dynamic from 'next/dynamic';
-import { MarketplaceView } from "@/components/MarketplaceView";
+import { Marketplace } from "@/components/Marketplace";
 
 const DashboardLayout = dynamic(
   () => import('@/components/DashboardLayout').then(mod => mod.DashboardLayout),
@@ -25,14 +25,14 @@ export default function MarketplacePage() {
     }
   }, [currentUser, router, isMounted]);
 
-  // Prevent rendering anything until the client-side check is complete
+  // Prevent rendering anything until the client-side auth check is complete
   if (!isMounted || !currentUser) {
-    return <div>Redirection...</div>; // Or a loading spinner
+    return <div className="flex justify-center items-center min-h-screen">Redirection...</div>;
   }
 
   return (
     <DashboardLayout>
-      <MarketplaceView />
+      <Marketplace />
     </DashboardLayout>
   );
 }

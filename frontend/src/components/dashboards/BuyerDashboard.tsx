@@ -51,22 +51,45 @@ export function BuyerDashboard() {
             {/* ... (empty state) ... */}
           </Card>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {myCredits.map((credit) => (
-              <Card key={credit.id} className="p-6">
-                <div className="space-y-3">
-                  <div className="flex justify-between items-start">
-                    <h3 className="text-gray-900">{credit.project.name}</h3>
-                    <Badge className="bg-green-100 text-green-700">DÉTENU</Badge>
-                  </div>
-                  <p className="text-sm text-gray-600">{credit.project.location}</p>
-                  <div className="text-xs text-gray-500 font-mono bg-gray-50 px-2 py-1 rounded">
-                    #{credit.serial_number} • {credit.hedera_token_id}
-                  </div>
-                  <div className="pt-3 border-t border-gray-200">
-                    <p className="text-sm text-gray-500">Acheté le</p>
-                    <p className="text-sm text-gray-900">{new Date(credit.created_at).toLocaleDateString("fr-FR")}</p>
-                  </div>
+              <Card key={credit.id} className="overflow-hidden hover:shadow-xl transition-shadow flex flex-col">
+                <div className="bg-gray-200 h-48 flex items-center justify-center">
+                    {credit.project.image_cid ? (
+                        <img 
+                            src={`https://ipfs.io/ipfs/${credit.project.image_cid}`}
+                            alt={credit.project.name} 
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <span className="text-8xl">🌍</span>
+                    )}
+                </div>
+                <div className="p-6 space-y-4 flex flex-col flex-grow">
+                    <div>
+                        <div className="flex items-start justify-between mb-2">
+                            <h3 className="text-xl text-gray-900 mb-2">Crédit #{credit.serial_number}</h3>
+                            <Badge className="bg-emerald-100 text-emerald-700">DÉTENU</Badge>
+                        </div>
+                        <p className="text-sm text-gray-600 flex items-center gap-1">
+                           Projet: {credit.project.name}
+                        </p>
+                    </div>
+
+                    <div className="flex items-center justify-between py-3 border-y border-gray-200">
+                        <div>
+                            <p className="text-xs text-gray-500">Token ID</p>
+                            <p className="text-sm font-mono">{credit.hedera_token_id}</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-xs text-gray-500">Tonnage</p>
+                            <p className="text-lg text-gray-900">{credit.project.tonnage.toLocaleString()} t</p>
+                        </div>
+                    </div>
+
+                    <div className="mt-auto text-xs text-gray-500">
+                      Acquis le {new Date(credit.created_at).toLocaleDateString("fr-FR")}
+                    </div>
                 </div>
               </Card>
             ))}
