@@ -69,31 +69,35 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   </button>
                 </div>
               ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={connect}
-                  disabled={isLoading}
-                  className="border-emerald-600 text-emerald-600 hover:bg-emerald-50"
-                >
-                  <Wallet className="w-4 h-4 mr-2" />
-                  {isLoading ? 'Connexion...' : 'Connecter Wallet'}
-                </Button>
+                currentUser?.user?.profile?.role !== 'VERIFIER' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={connect}
+                    disabled={isLoading}
+                    className="border-emerald-600 text-emerald-600 hover:bg-emerald-50"
+                  >
+                    <Wallet className="w-4 h-4 mr-2" />
+                    {isLoading ? 'Connexion...' : 'Connecter Wallet'}
+                  </Button>
+                )
               )}
               
               <span className="text-sm text-gray-600 hidden sm:inline">
                 {currentUser?.user?.username}
               </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => router.push('/marketplace')}
-                className="text-gray-600 hover:text-emerald-600"
-                title="Aller à la Marketplace"
-              >
-                <ShoppingCart className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Marketplace</span>
-              </Button>
+              {currentUser?.user?.profile?.role !== 'VERIFIER' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push('/marketplace')}
+                  className="text-gray-600 hover:text-emerald-600"
+                  title="Aller à la Marketplace"
+                >
+                  <ShoppingCart className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Marketplace</span>
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"

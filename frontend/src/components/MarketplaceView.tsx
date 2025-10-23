@@ -34,6 +34,13 @@ export function MarketplaceView() {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {listings.map((listing) => (
         <Card key={listing.credit.project.name}>
+          {listing.credit.project.image_cid && (
+            <img 
+              src={`https://ipfs.io/ipfs/${listing.credit.project.image_cid}`}
+              alt={listing.credit.project.name} 
+              className="w-full h-48 object-cover rounded-t-lg mb-4"
+            />
+          )}
           <CardHeader>
             <CardTitle>{listing.credit.project.name}</CardTitle>
           </CardHeader>

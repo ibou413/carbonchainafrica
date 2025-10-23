@@ -18,6 +18,9 @@ class Project(models.Model):
     vintage = models.PositiveIntegerField(default=2024)
     status = models.CharField(max_length=10, choices=ProjectStatus.choices, default=ProjectStatus.PENDING)
     projectId = models.CharField(max_length=255, blank=True, null=True)
+    metadata_cid = models.CharField(max_length=255, blank=True, null=True) # IPFS CID for project metadata JSON
+    image_cid = models.CharField(max_length=255, blank=True, null=True)    # IPFS CID for project image
+    document_cid = models.CharField(max_length=255, blank=True, null=True) # IPFS CID for project document
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -25,6 +25,9 @@ export interface Project {
   owner: any; 
   verifier?: any;
   projectId?: string;
+  metadata_cid?: string; // New field for IPFS CID of metadata JSON
+  image_cid?: string;    // New field for IPFS CID of project image
+  document_cid?: string; // New field for IPFS CID of project document
   created_at: string;
 }
 

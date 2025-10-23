@@ -27,7 +27,7 @@ class EscrowService {
     console.log("Proceeding with project submission...");
     const tx = new ContractExecuteTransaction()
       .setContractId(escrowContractId)
-      .setGas(1000000)
+      .setGas(3000000)
       .setPayableAmount(feeAsHbar)
       .setFunction("submitProject", new ContractFunctionParameters()
           .addString(metadataCid)
@@ -93,9 +93,9 @@ class EscrowService {
 
     
 
-        console.log("Step 3: Waiting for 10 seconds for transaction record to propagate on the network...");
+        console.log("Step 3: Waiting for 20 seconds for transaction record to propagate on the network...");
 
-        await new Promise(resolve => setTimeout(resolve, 10000));
+        await new Promise(resolve => setTimeout(resolve, 20000));
 
     
 

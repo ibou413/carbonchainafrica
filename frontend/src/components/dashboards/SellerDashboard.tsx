@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { getProjects, addProject, getCarbonCredits, listCredit, claimProceeds, CarbonCredit, getMyListings, Listing } from '../../store/carbonSlice';
+import ipfsService from '../../services/ipfsService';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -53,6 +54,8 @@ export function SellerDashboard() {
     tonnage: '',
     vintage: '2024',
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,9 +66,38 @@ export function SellerDashboard() {
 
     try {
       toast.info("Veuillez approuver la transaction dans votre portefeuille...");
-      
-      const metadataCid = formData.name;
-      const fee = 50; 
+
+      let imageCid = '';
+      if (imageFile) {
+        toast.info("Téléchargement de l'image du projet sur IPFS...");
+        imageCid = await ipfsService.uploadFileToIpfs(imageFile);
+        toast.success(`Image du projet téléchargée sur IPFS: ${imageCid}`);
+      }
+
+      let documentCid = '';
+      if (documentFile) {
+        toast.info("Téléchargement du document du projet sur IPFS...");
+        documentCid = await ipfsService.uploadFileToIpfs(documentFile);
+        toast.success(`Document du projet téléchargé sur IPFS: ${documentCid}`);
+      }
+
+      // 1. Construct metadata JSON
+      const projectMetadata = {
+        name: formData.name,
+        description: formData.description,
+        location: formData.location,
+        tonnage: parseInt(formData.tonnage),
+        vintage: parseInt(formData.vintage),
+        imageCid: imageCid, // Include image CID in metadata
+        documentCid: documentCid, // Include document CID in metadata
+      };
+
+      // 2. Upload metadata JSON to IPFS
+      toast.info("Téléchargement des métadonnées du projet sur IPFS...");
+      const metadataCid = await ipfsService.uploadJsonToIpfs(projectMetadata);
+      toast.success(`Métadonnées du projet téléchargées sur IPFS: ${metadataCid}`);
+
+      const fee = 10; 
       const transactionId = await escrowService.submitProject(accountId, metadataCid, fee);
       toast.success("Transaction Hedera réussie !");
 
@@ -76,6 +108,9 @@ export function SellerDashboard() {
           tonnage: parseInt(formData.tonnage),
           vintage: parseInt(formData.vintage),
           projectId: transactionId,
+          metadata_cid: metadataCid, // Store the CID in your backend as well
+          image_cid: imageCid, // Store image CID in backend
+          document_cid: documentCid, // Store document CID in backend
       };
 
       await dispatch(addProject(projectData));
@@ -137,6 +172,14 @@ export function SellerDashboard() {
                 <Label htmlFor="vintage">Année de création (Vintage)</Label>
                 <Input id="vintage" type="number" value={formData.vintage} onChange={(e) => setFormData({ ...formData, vintage: e.target.value })} required />
               </div>
+              <div>
+                <Label htmlFor="image">Image du projet</Label>
+                <Input id="image" type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files ? e.target.files[0] : null)} />
+              </div>
+              <div>
+                <Label htmlFor="document">Document du projet</Label>
+                <Input id="document" type="file" accept=".pdf,.doc,.docx" onChange={(e) => setDocumentFile(e.target.files ? e.target.files[0] : null)} />
+              </div>
               <Button type="submit" className="w-full">Soumettre le projet</Button>
             </form>
           </DialogContent>
@@ -153,7 +196,7 @@ export function SellerDashboard() {
             <TabsTrigger value="approved">Approuvés ({approvedProjects.length})</TabsTrigger>
             <TabsTrigger value="rejected">Rejetés ({rejectedProjects.length})</TabsTrigger>
             </TabsList>
-            <TabsContent value="all" key="all-projects-content" className="space-y-4">
+            <TabsContent value="all" key="all-projects-content" className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {isLoading ? (
                 <p>Chargement des projets...</p>
             ) : myProjects.length === 0 ? (
@@ -164,7 +207,7 @@ export function SellerDashboard() {
                 ))
             )}
             </TabsContent>
-            <TabsContent value="pending" key="pending-projects-content" className="space-y-4">
+            <TabsContent value="pending" key="pending-projects-content" className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {isLoading ? (
                 <p>Chargement des projets en attente...</p>
             ) : pendingProjects.length === 0 ? (
@@ -175,7 +218,7 @@ export function SellerDashboard() {
                 ))
             )}
             </TabsContent>
-            <TabsContent value="approved" key="approved-projects-content" className="space-y-4">
+            <TabsContent value="approved" key="approved-projects-content" className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {isLoading ? (
                 <p>Chargement des projets approuvés...</p>
             ) : approvedProjects.length === 0 ? (
@@ -186,7 +229,7 @@ export function SellerDashboard() {
                 ))
             )}
             </TabsContent>
-            <TabsContent value="rejected" key="rejected-projects-content" className="space-y-4">
+            <TabsContent value="rejected" key="rejected-projects-content" className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {isLoading ? (
                 <p>Chargement des projets rejetés...</p>
             ) : rejectedProjects.length === 0 ? (
@@ -261,16 +304,35 @@ const ProjectCard = React.memo(({ project }: { project: any }) => {
     };
 
     return (
-        <Card className="p-6">
-        <div className="flex justify-between">
-            <div>
-            <h3 className="text-lg font-semibold">{project.name}</h3>
-            <p className="text-sm text-gray-500">{project.location}</p>
+        <Card className="p-6 flex flex-col justify-between">
+        {project.image_cid && (
+            <img 
+                src={`https://ipfs.io/ipfs/${project.image_cid}`}
+                alt={project.name} 
+                className="w-full h-48 object-cover rounded-md mb-4"
+            />
+        )}
+        <div>
+            <div className="flex justify-between items-start">
+                <div>
+                <h3 className="text-lg font-semibold">{project.name}</h3>
+                <p className="text-sm text-gray-500">{project.location}</p>
+                </div>
+                <Badge className={getStatusColor(project.status)}>{project.status}</Badge>
             </div>
-            <Badge className={getStatusColor(project.status)}>{project.status}</Badge>
-        </div>
-        <div class="mt-4">
-            <p>{project.description}</p>
+            <div className="mt-4">
+                <p>{project.description}</p>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                <div>
+                    <p className="text-gray-500">Tonnage</p>
+                    <p>{project.tonnage} tCO₂</p>
+                </div>
+                <div>
+                    <p className="text-gray-500">Vintage</p>
+                    <p>{project.vintage}</p>
+                </div>
+            </div>
         </div>
         </Card>
     );
@@ -283,6 +345,13 @@ const ListingCard = React.memo(({ listing }: { listing: Listing }) => {
 
     return (
         <Card className="p-6 flex flex-col justify-between bg-yellow-50 border-yellow-200">
+            {listing.credit.project.image_cid && (
+                <img 
+                    src={`https://ipfs.io/ipfs/${listing.credit.project.image_cid}`}
+                    alt={listing.credit.project.name} 
+                    className="w-full h-48 object-cover rounded-md mb-4"
+                />
+            )}
             <div>
                 <div className="flex justify-between items-start">
                     <h3 className="text-lg font-semibold text-gray-900">Crédit #{listing.credit.serial_number}</h3>
@@ -366,6 +435,13 @@ const CreditCard = React.memo(({ credit, listingId }: { credit: CarbonCredit, li
     return (
         <>
             <Card className="p-6 flex flex-col justify-between">
+                {credit.project.image_cid && (
+                    <img 
+                        src={`https://ipfs.io/ipfs/${credit.project.image_cid}`}
+                        alt={credit.project.name} 
+                        className="w-full h-48 object-cover rounded-md mb-4"
+                    />
+                )}
                 <div>
                     <div className="flex justify-between items-start">
                         <h3 className="text-lg font-semibold text-gray-900">Crédit #{credit.serial_number}</h3>

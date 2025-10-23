@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { getVerifierDashboardProjects } from '../../store/carbonSlice';
 import { approveProject, rejectProject } from '../../store/escrowSlice';
-import { selectHashConnect } from '../../store/hashconnectSlice';
+
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -11,17 +11,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
 import { WalletAlert } from '../WalletAlert';
-import { CheckCircle, XCircle, TrendingUp, Calendar, MapPin, Clock } from 'lucide-react';
+import { CheckCircle, XCircle, TrendingUp, Calendar, MapPin, Clock, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { useHashConnect } from '../../hooks/useHashConnect';
+
 
 export function VerifierDashboard() {
   const dispatch = useDispatch<AppDispatch>();
   const { currentUser } = useSelector((state: RootState) => state.user);
   const { projects } = useSelector((state: RootState) => state.carbon);
-  const { isConnected } = useSelector(selectHashConnect);
-  const { connect } = useHashConnect();
 
   console.log("Verifier Dashboard - Projects from store:", projects);
   console.log("Verifier Dashboard - Current user from store:", currentUser);
@@ -110,9 +108,6 @@ export function VerifierDashboard() {
 
   return (
     <div className="space-y-6">
-      {!isConnected && (
-        <WalletAlert onConnect={connect} />
-      )}
 
       {/* Header */}
       <div>
@@ -178,8 +173,16 @@ export function VerifierDashboard() {
             <p className="text-gray-600">Aucun projet en attente de vérification</p>
           </Card>
         ) : (
-          pendingProjects.map(project => (
-            <Card key={project.id} className="p-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {pendingProjects.map(project => (
+              <Card key={project.id} className="p-6">
+              {project.image_cid && (
+                <img 
+                  src={`https://ipfs.io/ipfs/${project.image_cid}`}
+                  alt={project.name} 
+                  className="w-full h-48 object-cover rounded-md mb-4"
+                />
+              )}
               <div className="flex flex-col lg:flex-row gap-6">
                 <div className="flex-1 space-y-4">
                   <div className="flex items-start justify-between gap-4">
@@ -203,6 +206,17 @@ export function VerifierDashboard() {
                       <Calendar className="w-4 h-4" />
                       Vintage {project.vintage}
                     </div>
+                    {project.document_cid && (
+                        <a 
+                            href={`https://ipfs.io/ipfs/${project.document_cid}`}
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-blue-600 hover:underline"
+                        >
+                            <FileText className="w-4 h-4" />
+                            Voir Document
+                        </a>
+                    )}
                   </div>
 
                   <div className="text-sm text-gray-500">
@@ -233,7 +247,8 @@ export function VerifierDashboard() {
                 </div>
               </div>
             </Card>
-          ))
+          ))}
+          </div>
         )}
       </div>
 
