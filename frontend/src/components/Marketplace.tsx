@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -8,6 +8,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { getActiveListings, buyCredit, Listing } from '../store/carbonSlice';
 import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { PurchaseProgress } from './PurchaseProgress';
 
 export function Marketplace() {
   const { currentUser } = useSelector((state: RootState) => state.user);
@@ -15,22 +17,59 @@ export function Marketplace() {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
 
+  const [isBuying, setIsBuying] = useState(false);
+  const [purchaseStep, setPurchaseStep] = useState(0);
+  const [errorStep, setErrorStep] = useState<number | null>(null);
+  const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
+  const [listingsPage, setListingsPage] = useState(1);
+  const itemsPerPage = 8;
+
+  // Pagination for listings
+  const paginatedListings = useMemo(() => {
+    const startIndex = (listingsPage - 1) * itemsPerPage;
+    return listings.slice(startIndex, startIndex + itemsPerPage);
+  }, [listings, listingsPage, itemsPerPage]);
+
+  const totalListingPages = Math.ceil(listings.length / itemsPerPage);
+
   useEffect(() => {
     dispatch(getActiveListings());
   }, [dispatch]);
 
-  const handleBuy = (listing: Listing) => {
+  const handleBuy = async (listing: Listing) => {
     if (!currentUser) {
       toast.error("Veuillez vous connecter pour acheter un crédit.");
       router.push('/login');
       return;
     }
-    
-    toast.info("Achat en cours...", {
-      description: "Veuillez approuver la transaction dans votre portefeuille.",
-    });
 
-    dispatch(buyCredit(listing));
+    setSelectedListing(listing);
+    setIsBuying(true);
+    setPurchaseStep(0);
+    setErrorStep(null);
+
+    try {
+      setPurchaseStep(0);
+      await dispatch(buyCredit(listing)).unwrap();
+
+      setPurchaseStep(1);
+      // The slice already shows toasts, so we just need to update the step
+      setPurchaseStep(2);
+      setPurchaseStep(3); // Assuming step 3 is finalization
+
+      toast.success("Achat réussi !");
+      dispatch(getActiveListings());
+      setTimeout(() => {
+        setIsBuying(false);
+      }, 3000); // Close after 3 seconds
+    } catch (error: any) {
+      setErrorStep(purchaseStep);
+      const errorMessage = error.message || "An unknown error occurred.";
+      console.error("Error buying credit:", error);
+      toast.error("Erreur lors de l'achat:", { description: errorMessage });
+      setIsBuying(false);
+      setSelectedListing(null);
+    }
   };
 
   // Calculate stats dynamically
@@ -81,6 +120,33 @@ export function Marketplace() {
           </p>
         </div>
 
+        {/* Stats Bar */}
+        <div className="grid grid-cols-3 gap-6 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl p-8 mb-12">
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-2 text-emerald-600 mb-2">
+              <TrendingUp className="w-5 h-5" />
+              <span className="text-3xl">{stats.activeProjects}</span>
+            </div>
+            <p className="text-sm text-gray-600">Projets Actifs</p>
+          </div>
+          <div className="text-center border-x border-emerald-200">
+            <div className="flex items-center justify-center gap-2 text-emerald-600 mb-2">
+              <span className="text-3xl">
+                {stats.availableTons > 1000000 
+                  ? `${(stats.availableTons / 1000000).toFixed(1)}M` 
+                  : stats.availableTons.toLocaleString()}
+              </span>
+            </div>
+            <p className="text-sm text-gray-600">Tonnes CO₂ Disponibles</p>
+          </div>
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-2 text-emerald-600 mb-2">
+              <span className="text-3xl">{stats.avgPrice.toFixed(2)} HBAR</span>
+            </div>
+            <p className="text-sm text-gray-600">Prix Moyen/tonne</p>
+          </div>
+        </div>
+
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3 mb-8">
           <Button variant="outline" size="sm">
@@ -105,12 +171,12 @@ export function Marketplace() {
             <div className="col-span-full flex justify-center items-center">
               <Loader2 className="w-12 h-12 text-emerald-600 animate-spin" />
             </div>
-          ) : listings.length === 0 ? (
+          ) : paginatedListings.length === 0 ? (
             <div className="col-span-full text-center text-gray-500">
               <p>Aucune annonce disponible pour le moment.</p>
             </div>
           ) : (
-            listings.map((listing) => (
+            paginatedListings.map((listing) => (
               <Card key={listing.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="bg-gray-200 h-40 flex items-center justify-center">
                   {listing.credit.project.image_cid ? (
@@ -160,34 +226,24 @@ export function Marketplace() {
             ))
           )}
         </div>
+        {totalListingPages > 1 && (
+          <div className="flex justify-center items-center gap-4 mt-8">
+            <Button onClick={() => setListingsPage(p => Math.max(1, p - 1))} disabled={listingsPage === 1}>Précédent</Button>
+            <span>Page {listingsPage} sur {totalListingPages}</span>
+            <Button onClick={() => setListingsPage(p => Math.min(totalListingPages, p + 1))} disabled={listingsPage === totalListingPages}>Suivant</Button>
+          </div>
+        )}
 
-        {/* Stats Bar */}
-        <div className="grid grid-cols-3 gap-6 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl p-8">
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-2 text-emerald-600 mb-2">
-              <TrendingUp className="w-5 h-5" />
-              <span className="text-3xl">{stats.activeProjects}</span>
-            </div>
-            <p className="text-sm text-gray-600">Projets Actifs</p>
-          </div>
-          <div className="text-center border-x border-emerald-200">
-            <div className="flex items-center justify-center gap-2 text-emerald-600 mb-2">
-              <span className="text-3xl">
-                {stats.availableTons > 1000000 
-                  ? `${(stats.availableTons / 1000000).toFixed(1)}M` 
-                  : stats.availableTons.toLocaleString()}
-              </span>
-            </div>
-            <p className="text-sm text-gray-600">Tonnes CO₂ Disponibles</p>
-          </div>
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-2 text-emerald-600 mb-2">
-              <span className="text-3xl">{stats.avgPrice.toFixed(2)} HBAR</span>
-            </div>
-            <p className="text-sm text-gray-600">Prix Moyen/tonne</p>
-          </div>
-        </div>
+
       </div>
+      <Dialog open={isBuying} onOpenChange={setIsBuying}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Achat en cours</DialogTitle>
+          </DialogHeader>
+          <PurchaseProgress currentStep={purchaseStep} errorStep={errorStep} onClose={() => setIsBuying(false)} />
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

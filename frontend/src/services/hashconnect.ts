@@ -27,11 +27,3 @@ export const getHashConnect = async () => {
   );
   return hc;
 };
-
-
-export const getInitPromise = async () => {
-  if (initPromise) return initPromise;
-  const instance = await getHashConnect();
-  initPromise = instance.init();
-  return initPromise;
-};

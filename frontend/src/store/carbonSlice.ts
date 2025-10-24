@@ -280,23 +280,6 @@ export const buyCredit = createAsyncThunk(
   }
 );
 
-export const getPendingProjects = createAsyncThunk(
-  'carbon/getPendingProjects',
-  async (_, thunkAPI) => {
-    try {
-      const state = thunkAPI.getState() as RootState;
-      const token = state.user.currentUser?.access;
-      if (!token) {
-        return thunkAPI.rejectWithValue('User not authenticated');
-      }
-      return await projectService.getPendingProjects(token);
-    } catch (error: any) {
-      const message = (error.response && error.response.data && error.response.data.message) || error.message || error.toString();
-      return thunkAPI.rejectWithValue(message);
-    }
-  }
-);
-
 export const getVerifierDashboardProjects = createAsyncThunk(
   'carbon/getVerifierDashboardProjects',
   async (_, thunkAPI) => {
@@ -415,16 +398,6 @@ const carbonSlice = createSlice({
         state.listings = state.listings.filter(l => l.id !== action.meta.arg.id);
       })
       .addCase(buyCredit.rejected, (state, action) => {
-        state.isLoading = false;
-        state.isError = true;
-        state.message = action.payload as string;
-      })
-      .addCase(getPendingProjects.pending, (state) => { state.isLoading = true; })
-      .addCase(getPendingProjects.fulfilled, (state, action: PayloadAction<Project[]>) => {
-        state.isLoading = false;
-        state.projects = action.payload;
-      })
-      .addCase(getPendingProjects.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload as string;

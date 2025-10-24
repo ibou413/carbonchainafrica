@@ -12,6 +12,7 @@ import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
 import { CheckCircle, XCircle, TrendingUp, Calendar, MapPin, Clock, FileText, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { VerificationProgress } from '../VerificationProgress';
 
 export function VerifierDashboard() {
   const dispatch = useDispatch<AppDispatch>();
@@ -29,7 +30,8 @@ export function VerifierDashboard() {
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [action, setAction] = useState<'approve' | 'reject'>('approve');
-  const [notes, setNotes] = useState('');
+  const [projectsPage, setProjectsPage] = useState(1);
+  const itemsPerPage = 6;
 
   const pendingProjects = useMemo(() => projects.filter(p => p.status === 'PENDING'), [projects]);
   const projectsHandledByVerifier = useMemo(() => projects.filter(p => p.verifier?.username === currentUser?.user?.username), [projects, currentUser]);
@@ -48,6 +50,18 @@ export function VerifierDashboard() {
     }
   }, [activeFilter, pendingProjects, approvedProjects, rejectedProjects]);
 
+  // Pagination for projects
+  const paginatedProjects = useMemo(() => {
+    const startIndex = (projectsPage - 1) * itemsPerPage;
+    return filteredProjects.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredProjects, projectsPage, itemsPerPage]);
+
+  const totalProjectPages = Math.ceil(filteredProjects.length / itemsPerPage);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationStep, setVerificationStep] = useState(0);
+  const [errorStep, setErrorStep] = useState<number | null>(null);
+  const [notes, setNotes] = useState('');
+
   const handleVerify = async () => {
     if (!selectedProject) return;
     const token = currentUser?.access;
@@ -61,18 +75,34 @@ export function VerifierDashboard() {
         toast.error("L'ID de transaction de la soumission est introuvable pour ce projet.");
         return;
     }
+
+    setIsVerifying(true);
+    setVerificationStep(0);
+    setErrorStep(null);
+
     try {
       if (action === 'approve') {
+        setVerificationStep(0);
         await dispatch(approveProject({ dbProjectId, submitTransactionId: submitTxId, token })).unwrap();
       } else {
+        setVerificationStep(0);
         await dispatch(rejectProject({ dbProjectId, submitTransactionId: submitTxId, token })).unwrap();
       }
-      setDialogOpen(false);
+
+      setVerificationStep(1);
+      // The slice already shows toasts, so we just need to update the step
+      setVerificationStep(2);
+
+      toast.success(`Projet ${action === 'approve' ? 'approuvé' : 'rejeté'} avec succès !`);
       setSelectedProject(null);
       setNotes('');
       dispatch(getVerifierDashboardProjects());
+      setDialogOpen(false);
     } catch (error: any) {
+      setErrorStep(verificationStep);
       console.error("Verification error during dispatch:", error);
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -80,6 +110,9 @@ export function VerifierDashboard() {
     setSelectedProject(project);
     setAction(actionType);
     setDialogOpen(true);
+    setIsVerifying(false);
+    setVerificationStep(0);
+    setErrorStep(null);
   };
 
   return (
@@ -160,7 +193,7 @@ export function VerifierDashboard() {
           </Card>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredProjects.map(project => (
+            {paginatedProjects.map(project => (
               <Card key={project.id} className="overflow-hidden hover:shadow-xl transition-shadow flex flex-col">
                 <div className="bg-gray-200 h-48 flex items-center justify-center">
                     {project.image_cid ? (
@@ -228,6 +261,13 @@ export function VerifierDashboard() {
           </div>
         )}
       </div>
+      {totalProjectPages > 1 && (
+        <div className="flex justify-center items-center gap-4 mt-8">
+          <Button onClick={() => setProjectsPage(p => Math.max(1, p - 1))} disabled={projectsPage === 1}>Précédent</Button>
+          <span>Page {projectsPage} sur {totalProjectPages}</span>
+          <Button onClick={() => setProjectsPage(p => Math.min(totalProjectPages, p + 1))} disabled={projectsPage === totalProjectPages}>Suivant</Button>
+        </div>
+      )}
 
       {/* Verification Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -240,42 +280,46 @@ export function VerifierDashboard() {
               Vérifiez les détails du projet ci-dessous et confirmez votre décision. Des notes optionnelles peuvent être ajoutées.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            {selectedProject && (
-              <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                <h4 className="text-gray-900">{selectedProject.name}</h4>
-                <p className="text-sm text-gray-600">{selectedProject.location}</p>
-                <p className="text-sm text-gray-600">
-                  {selectedProject.tonnage.toLocaleString()} tonnes CO₂
-                </p>
+          {isVerifying ? (
+            <VerificationProgress currentStep={verificationStep} errorStep={errorStep} onClose={() => setDialogOpen(false)} />
+          ) : (
+            <div className="space-y-4">
+              {selectedProject && (
+                <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                  <h4 className="text-gray-900">{selectedProject.name}</h4>
+                  <p className="text-sm text-gray-600">{selectedProject.location}</p>
+                  <p className="text-sm text-gray-600">
+                    {selectedProject.tonnage.toLocaleString()} tonnes CO₂
+                  </p>
+                </div>
+              )}
+              <div>
+                <Label htmlFor="notes">Notes de Vérification (Optionnel)</Label>
+                <Textarea
+                  id="notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Ajoutez vos commentaires..."
+                  rows={4}
+                />
               </div>
-            )}
-            <div>
-              <Label htmlFor="notes">Notes de Vérification (Optionnel)</Label>
-              <Textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Ajoutez vos commentaires..."
-                rows={4}
-              />
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                  Annuler
+                </Button>
+                <Button 
+                  className={
+                    action === 'approve' 
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      : 'bg-red-600 hover:bg-red-700 text-white'
+                  }
+                  onClick={handleVerify}
+                >
+                  {action === 'approve' ? 'Approuver' : 'Rejeter'}
+                </Button>
+              </div>
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                Annuler
-              </Button>
-              <Button 
-                className={
-                  action === 'approve' 
-                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                    : 'bg-red-600 hover:bg-red-700 text-white'
-                }
-                onClick={handleVerify}
-              >
-                {action === 'approve' ? 'Approuver' : 'Rejeter'}
-              </Button>
-            </div>
-          </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
