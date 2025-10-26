@@ -17,32 +17,32 @@ The frontend is a decentralized application (dApp) built with Next.js, offering 
 
 **Core Functionalities:**
 
-*   **Role-Based User Experience:** The application provides distinct dashboards and functionalities for different user roles:
-    *   **Sellers:** Can submit their carbon projects for verification, manage their minted carbon credit NFTs, and list them for sale on the marketplace. Their dedicated dashboard is `SellerDashboard.tsx`.
-    *   **Verifiers:** Have a dedicated dashboard (`VerifierDashboard.tsx`) to review pending projects, assess their documentation, and approve or reject them.
-    *   **Buyers:** Can browse a dynamic marketplace of available carbon credits, view project details, and purchase NFTs directly. Their dashboard (`BuyerDashboard.tsx`) allows them to track their portfolio of owned credits.
-
-*   **Seamless On-Chain Interactions:** The frontend integrates with the Hedera network via HashConnect for all on-chain operations. This includes:
-    *   Submitting projects to the escrow smart contract.
-    *   Approving projects, which triggers the minting of carbon credit NFTs.
-    *   Listing, purchasing, and claiming proceeds from NFT sales on the marketplace.
-
-*   **Decentralized Storage:** Project documentation and metadata are stored on IPFS, ensuring data immutability and decentralization. The frontend handles the uploading and retrieval of this data.
-
-*   **Interactive User Workflows:** The application guides users through complex processes with clear, step-by-step interfaces and visual feedback. This includes:
-    *   **Project Submission:** A multi-step form for sellers to provide project details and upload documents.
-    *   **Verification Process:** A clear and concise interface for verifiers to review and approve projects.
-    *   **Marketplace Transactions:** A smooth and secure process for buying and selling carbon credit NFTs, with progress indicators for each step of the transaction.
+> *   **Role-Based User Experience:** The application provides distinct dashboards and functionalities for different user roles:
+>     *   **Sellers:** Can submit their carbon projects for verification, manage their minted carbon credit NFTs, and list them for sale on the marketplace. Their dedicated dashboard is `SellerDashboard.tsx`.
+>     *   **Verifiers:** Have a dedicated dashboard (`VerifierDashboard.tsx`) to review pending projects, assess their documentation, and approve or reject them.
+>     *   **Buyers:** Can browse a dynamic marketplace of available carbon credits, view project details, and purchase NFTs directly. Their dashboard (`BuyerDashboard.tsx`) allows them to track their portfolio of owned credits.
+>
+> *   **Seamless On-Chain Interactions:** The frontend integrates with the Hedera network via HashConnect for all on-chain operations. This includes:
+>     *   Submitting projects to the escrow smart contract.
+>     *   Approving projects, which triggers the minting of carbon credit NFTs.
+>     *   Listing, purchasing, and claiming proceeds from NFT sales on the marketplace.
+>
+> *   **Decentralized Storage:** Project documentation and metadata are stored on IPFS, ensuring data immutability and decentralization. The frontend handles the uploading and retrieval of this data.
+>
+> *   **Interactive User Workflows:** The application guides users through complex processes with clear, step-by-step interfaces and visual feedback. This includes:
+>     *   **Project Submission:** A multi-step form for sellers to provide project details and upload documents.
+>     *   **Verification Process:** A clear and concise interface for verifiers to review and approve projects.
+>     *   **Marketplace Transactions:** A smooth and secure process for buying and selling carbon credit NFTs, with progress indicators for each step of the transaction.
 
 ## Technology Stack
 
-- **Framework**: Next.js, React
-- **Language**: TypeScript
-- **Styling**: TailwindCSS, Radix UI
-- **State Management**: Redux Toolkit
-- **Blockchain Interaction**: `@hashgraph/sdk`, `hashconnect`, `ethers.js`
-- **API Communication**: Axios
-- **Dependencies**: See `package.json` for a full list.
+> - **Framework**: Next.js, React
+> - **Language**: TypeScript
+> - **Styling**: TailwindCSS, Radix UI
+> - **State Management**: Redux Toolkit
+> - **Blockchain Interaction**: `@hashgraph/sdk`, `hashconnect`, `ethers.js`
+> - **API Communication**: Axios
+> - **Dependencies**: See `package.json` for a full list.
 
 ## 🚀 Setup and Installation
 
@@ -135,12 +135,13 @@ Here are some of the key pages of the CarbonChain-Africa platform:
         ![Seller Dashboard (Credits)](../docs/images/sellerdashboard_credits.png)
     -   `components/dashboards/VerifierDashboard.tsx`: Enables verifiers to review and approve/reject pending projects.
         ![Verifier Dashboard](../docs/images/verifierdashboard.png)
+    -   `pages/marketplace.tsx`: The main marketplace for browsing and purchasing carbon credit NFTs.
+        ![Marketplace Page](../docs/images/marketplace.png)
     -   `components/dashboards/BuyerDashboard.tsx`: Lets buyers track their purchased carbon credits and their environmental impact.
         ![Buyer Dashboard](../docs/images/buyerdashboard.png)
-    -   `components/dashboards/AdminDashboard.tsx`: Provides administrative functionalities.
 
--   `pages/marketplace.tsx`: The main marketplace for browsing and purchasing carbon credit NFTs.
-    ![Marketplace Page](../docs/images/marketplace.png)
+
+
 
 
 
@@ -148,36 +149,36 @@ Here are some of the key pages of the CarbonChain-Africa platform:
 
 The `src/services` directory contains modules for interacting with various parts of the system, abstracting complex logic and promoting reusability:
 
--   `authService.ts`: Handles user authentication (login, registration) with the Django backend.
--   `projectService.ts`: Communicates with the backend for managing carbon projects and listings.
--   `ipfsService.ts`: Manages uploads and retrieval of data from IPFS for project metadata and documents.
--   `escrowService.ts`: Interacts directly with the `CarbonProjectEscrow` smart contract for project submission and verification.
--   `nftService.ts`: Handles interactions related to the `CarbonCreditNFT` and `CarbonCreditMarketplace` contracts.
+> -   `authService.ts`: Handles user authentication (login, registration) with the Django backend.
+> -   `projectService.ts`: Communicates with the backend for managing carbon projects and listings.
+> -   `ipfsService.ts`: Manages uploads and retrieval of data from IPFS for project metadata and documents.
+> -   `escrowService.ts`: Interacts directly with the `CarbonProjectEscrow` smart contract for project submission and verification.
+> -   `nftService.ts`: Handles interactions related to the `CarbonCreditNFT` and `CarbonCreditMarketplace` contracts.
 
 ### HashConnect Integration (`hashconnect.ts` & `useHashConnect.ts`)
 
 Our frontend features a robust and secure integration with Hedera wallets via **HashConnect**. This service (`hashconnect.ts`) initializes and manages the connection, while a custom hook (`useHashConnect.ts`) provides a centralized and reusable way to manage wallet state and interactions across the application.
 
 **Key Features of HashConnect Integration:**
--   **Real HashConnect SDK Integration**: Uses actual HashConnect v3 for secure and reliable wallet connections (e.g., HashPack, Blade Wallet).
--   **Secure Transaction Signing**: Enables users to sign Hedera transactions directly from their connected wallet without exposing private keys to the application.
--   **Wallet State Management**: Manages pairing events, disconnection events, and connection status changes, persisting wallet state across page navigation.
--   **Error Handling**: Gracefully handles connection failures and transaction errors.
--   **Redux State Management**: Integrates with Redux for clean and centralized management of HashConnect-related state.
+> -   **Real HashConnect SDK Integration**: Uses actual HashConnect v3 for secure and reliable wallet connections (e.g., HashPack, Blade Wallet).
+> -   **Secure Transaction Signing**: Enables users to sign Hedera transactions directly from their connected wallet without exposing private keys to the application.
+> -   **Wallet State Management**: Manages pairing events, disconnection events, and connection status changes, persisting wallet state across page navigation.
+> -   **Error Handling**: Gracefully handles connection failures and transaction errors.
+> -   **Redux State Management**: Integrates with Redux for clean and centralized management of HashConnect-related state.
 
-**Configuration:**
--   The HashConnect service is configured for the Hedera **Testnet** environment.
--   It uses a specific `projectId` and `appMetadata` for identification within the HashConnect network.
+> **Configuration:**
+> -   The HashConnect service is configured for the Hedera **Testnet** environment.
+> -   It uses a specific `projectId` and `appMetadata` for identification within the HashConnect network.
 
-**Usage:**
-Users can connect their Hedera wallets via a dedicated "Connect Wallet" button. Once connected, their Hedera Account ID is displayed, and they can proceed with blockchain-related operations.
+> **Usage:**
+> Users can connect their Hedera wallets via a dedicated "Connect Wallet" button. Once connected, their Hedera Account ID is displayed, and they can proceed with blockchain-related operations.
 
 ## Smart Contract Interaction
 
 The frontend interacts with the Hedera network primarily through `ethers.js` and the `@hashgraph/sdk` for direct contract calls and transaction signing. Key interactions include:
--   Submitting projects to the `CarbonProjectEscrow` contract.
--   Verifiers approving projects, which triggers NFT minting.
--   Listing and purchasing NFTs on the `CarbonCreditMarketplace` contract.
--   Claiming proceeds from sales.
+> -   Submitting projects to the `CarbonProjectEscrow` contract.
+> -   Verifiers approving projects, which triggers NFT minting.
+> -   Listing and purchasing NFTs on the `CarbonCreditMarketplace` contract.
+> -   Claiming proceeds from sales.
 
 Contract ABIs and deployed addresses are managed via the `deployment-new-architecture.json` file, generated during the deployment script execution.
