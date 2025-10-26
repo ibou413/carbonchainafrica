@@ -113,29 +113,36 @@ To effectively test the end-to-end functionality of the application, we recommen
 
 ## Key Pages
 
-**[IMPORTANT]** Please create a `docs/images` folder inside the `frontend` directory and place your screenshots there. Then, replace the placeholder paths below with the actual paths to your images.
+Here are some of the key pages of the CarbonChain-Africa platform:
 
 -   `pages/index.tsx`: The landing page of the application.
-    ![Landing Page Screenshot](docs/images/landing_page.png)
+    ![Home Page](../docs/images/home.png)
 
 -   `pages/login.tsx`: User login page.
-    ![Login Page Screenshot](docs/images/login_page.png)
+    ![Login Page](../docs/images/login.png)
+
+-   `pages/select-role.tsx`: Page for users to select their role (Seller, Verifier, Buyer) before signing up.
+    ![Select Role Page](../docs/images/select_role.png)
 
 -   `pages/register.tsx`: User registration page.
-    ![Register Page Screenshot](docs/images/register_page.png)
+    ![Sign Up Page](../docs/images/signup.png)
 
--   `pages/select-role.tsx`: Page for users to select their role (Seller, Verifier, Buyer).
-    ![Select Role Page Screenshot](docs/images/select_role_page.png)
+
 
 -   `pages/dashboard.tsx`: The **Role-Specific Dashboard**. This personalized hub dynamically adapts its content based on the user's assigned role.
     -   `components/dashboards/SellerDashboard.tsx`: Allows sellers to submit and manage their projects and carbon credit NFTs.
+        ![Seller Dashboard (Projects)](../docs/images/sellerdashboard_projects.png)
+        ![Seller Dashboard (Credits)](../docs/images/sellerdashboard_credits.png)
     -   `components/dashboards/VerifierDashboard.tsx`: Enables verifiers to review and approve/reject pending projects.
-    -   `components/dashboards/BuyerDashboard.tsx`: Lets buyers track their purchased carbon credits and environmental impact.
+        ![Verifier Dashboard](../docs/images/verifierdashboard.png)
+    -   `components/dashboards/BuyerDashboard.tsx`: Lets buyers track their purchased carbon credits and their environmental impact.
+        ![Buyer Dashboard](../docs/images/buyerdashboard.png)
     -   `components/dashboards/AdminDashboard.tsx`: Provides administrative functionalities.
-    ![Dashboard Screenshot](docs/images/dashboard.png)
 
 -   `pages/marketplace.tsx`: The main marketplace for browsing and purchasing carbon credit NFTs.
-    ![Marketplace Screenshot](docs/images/marketplace.png)
+    ![Marketplace Page](../docs/images/marketplace.png)
+
+
 
 ## Services and Hedera Integration
 

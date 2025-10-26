@@ -43,7 +43,8 @@ export function SellerDashboard() {
     fetchHbarPrice();
   }, []);
 
-  const [activeProjectFilter, setActiveProjectFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
+
+  const [activeProjectFilter, setActiveProjectFilter] = useState<'ALL' | 'PENDING' | 'REJECTED'>('ALL');
   const [activeCreditFilter, setActiveCreditFilter] = useState<'MINTED' | 'LISTED' | 'SOLD'>('MINTED');
 
 
@@ -93,27 +94,27 @@ export function SellerDashboard() {
   // Data derived for Projects
   const myProjects = useMemo(() => projects.filter(p => p.owner?.username === currentUser?.user?.username).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()), [projects, currentUser]);
   const pendingProjects = useMemo(() => myProjects.filter(p => p.status === 'PENDING'), [myProjects]);
-  const approvedProjects = useMemo(() => myProjects.filter(p => p.status === 'APPROVED'), [myProjects]);
   const rejectedProjects = useMemo(() => myProjects.filter(p => p.status === 'REJECTED'), [myProjects]);
 
   const filteredProjects = useMemo(() => {
     switch (activeProjectFilter) {
       case 'PENDING': return pendingProjects;
-      case 'APPROVED': return approvedProjects;
       case 'REJECTED': return rejectedProjects;
       case 'ALL':
       default: return myProjects;
     }
-  }, [activeProjectFilter, myProjects, pendingProjects, approvedProjects, rejectedProjects]);
+  }, [activeProjectFilter, myProjects, pendingProjects, rejectedProjects]);
 
   // Data derived for Credits
   const mintedCredits = useMemo(() => carbonCredits.filter(c => c.owner?.username === currentUser?.user?.username && c.status === 'MINTED').sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()), [carbonCredits, currentUser]);
   const myActiveListings = useMemo(() => myListings.filter(l => l.seller?.username === currentUser?.user?.username && l.is_active).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()), [myListings, currentUser]);
   const mySoldListings = useMemo(() => myListings.filter(l => l.seller?.username === currentUser?.user?.username && !l.is_active).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()), [myListings, currentUser]);
 
-const [projectsPage, setProjectsPage] = useState(1);                                                                      
+const [projectsPage, setProjectsPage] = useState(1);
 const [creditsPage, setCreditsPage] = useState(1);                                                                        
 const itemsPerPage = 6;  
+
+
 
 
   // Pagination for projects
@@ -317,10 +318,6 @@ const itemsPerPage = 6;
           <h1 className="text-3xl text-gray-900">Seller Dashboard</h1>
           <p className="text-gray-600">Manage your projects and carbon credits</p>
         </div>
-        <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setIsDialogOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          New Project
-        </Button>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent>
             <DialogHeader>
@@ -413,34 +410,7 @@ const itemsPerPage = 6;
       </div>
 
       {/* Stats Section */}
-      <div className="grid md:grid-cols-4 gap-4">
-        <Card 
-          className={`p-6 cursor-pointer transition-all ${activeProjectFilter === 'PENDING' ? 'ring-2 ring-yellow-500' : 'hover:shadow-md'}`}
-          onClick={() => setActiveProjectFilter('PENDING')}
-        >
-          <div className="flex items-center justify-between">
-            <div><p className="text-sm text-gray-500">Pending Projects</p><p className="text-2xl text-gray-900">{pendingProjects.length}</p></div>
-            <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center"><Clock className="w-6 h-6 text-yellow-600" /></div>
-          </div>
-        </Card>
-        <Card 
-          className={`p-6 cursor-pointer transition-all ${activeProjectFilter === 'APPROVED' ? 'ring-2 ring-emerald-500' : 'hover:shadow-md'}`}
-          onClick={() => setActiveProjectFilter('APPROVED')}
-        >
-          <div className="flex items-center justify-between">
-            <div><p className="text-sm text-gray-500">Approved Projects</p><p className="text-2xl text-gray-900">{approvedProjects.length}</p></div>
-            <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center"><Check className="w-6 h-6 text-emerald-600" /></div>
-          </div>
-        </Card>
-        <Card 
-          className={`p-6 cursor-pointer transition-all ${activeProjectFilter === 'REJECTED' ? 'ring-2 ring-red-500' : 'hover:shadow-md'}`}
-          onClick={() => setActiveProjectFilter('REJECTED')}
-        >
-          <div className="flex items-center justify-between">
-            <div><p className="text-sm text-gray-500">Rejected Projects</p><p className="text-2xl text-gray-900">{rejectedProjects.length}</p></div>
-            <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center"><XCircle className="w-6 h-6 text-red-600" /></div>
-          </div>
-        </Card>
+      <div className="grid md:grid-cols-1 gap-4">
         <Card className="p-6 bg-gray-50">
           <div className="flex items-center justify-between">
             <div><p className="text-sm text-gray-500">Credits for Sale</p><p className="text-2xl text-gray-900">{myActiveListings.length}</p></div>
@@ -449,87 +419,120 @@ const itemsPerPage = 6;
         </Card>
       </div>
 
-      {/* Projects Section */}
-      <div className="space-y-4">
+      <Tabs defaultValue="projects" className="space-y-4">
         <div className="flex justify-between items-center">
-            <h2 className="text-2xl text-gray-900">My Projects ({activeProjectFilter})</h2>
-            <Button variant="ghost" onClick={() => setActiveProjectFilter('ALL')} className={activeProjectFilter === 'ALL' ? 'text-emerald-600 font-bold' : 'text-gray-500'}>See all ({myProjects.length})</Button>
+          <TabsList>
+            <TabsTrigger value="projects">My Projects</TabsTrigger>
+            <TabsTrigger value="credits">My Credits</TabsTrigger>
+          </TabsList>
+          <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setIsDialogOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            New Project
+          </Button>
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 min-h-[300px]">
-          {isLoading ? (
-            <div className="col-span-full flex justify-center items-center p-12"><Loader2 className="w-8 h-8 animate-spin"/></div>
-          ) : paginatedProjects.length === 0 ? (
-            <div className="col-span-full text-center p-12"><p>No projects in this category.</p></div>
-          ) : (
-            paginatedProjects.map(project => (
-              <ProjectCard key={project.id} project={project} />
-            ))
-          )}
-        </div>
-        {totalProjectPages > 1 && (
-          <div className="flex justify-center items-center gap-4 mt-8">
-            <Button onClick={() => setProjectsPage(p => Math.max(1, p - 1))} disabled={projectsPage === 1}>Previous</Button>
-            <span>Page {projectsPage} of {totalProjectPages}</span>
-            <Button onClick={() => setProjectsPage(p => Math.min(totalProjectPages, p + 1))} disabled={projectsPage === totalProjectPages}>Next</Button>
+        <TabsContent value="projects" className="space-y-4">
+          <div className="grid md:grid-cols-3 gap-4">
+            <Card 
+              className={`p-6 cursor-pointer transition-all ${activeProjectFilter === 'ALL' ? 'ring-2 ring-blue-500' : 'hover:shadow-md'}`}
+              onClick={() => setActiveProjectFilter('ALL')}
+            >
+              <div className="flex items-center justify-between">
+                <div><p className="text-sm text-gray-500">All Projects</p><p className="text-2xl text-gray-900">{myProjects.length}</p></div>
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center"><Leaf className="w-6 h-6 text-blue-600" /></div>
+              </div>
+            </Card>
+            <Card 
+              className={`p-6 cursor-pointer transition-all ${activeProjectFilter === 'PENDING' ? 'ring-2 ring-yellow-500' : 'hover:shadow-md'}`}
+              onClick={() => setActiveProjectFilter('PENDING')}
+            >
+              <div className="flex items-center justify-between">
+                <div><p className="text-sm text-gray-500">Pending Projects</p><p className="text-2xl text-gray-900">{pendingProjects.length}</p></div>
+                <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center"><Clock className="w-6 h-6 text-yellow-600" /></div>
+              </div>
+            </Card>
+            <Card 
+              className={`p-6 cursor-pointer transition-all ${activeProjectFilter === 'REJECTED' ? 'ring-2 ring-red-500' : 'hover:shadow-md'}`}
+              onClick={() => setActiveProjectFilter('REJECTED')}
+            >
+              <div className="flex items-center justify-between">
+                <div><p className="text-sm text-gray-500">Rejected Projects</p><p className="text-2xl text-gray-900">{rejectedProjects.length}</p></div>
+                <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center"><XCircle className="w-6 h-6 text-red-600" /></div>
+              </div>
+            </Card>
           </div>
-        )}
-      </div>
-
-      {/* Carbon Credits Section */}
-      <div className="space-y-4">
-        <h2 className="text-2xl text-gray-900">My Carbon Credits</h2>
-        
-        {/* Stats Cards / Filters for Credits */}
-        <div className="grid md:grid-cols-3 gap-4">
-          <Card 
-            className={`p-6 cursor-pointer transition-all ${activeCreditFilter === 'MINTED' ? 'ring-2 ring-blue-500' : 'hover:shadow-md'}`}
-            onClick={() => setActiveCreditFilter('MINTED')}
-          >
-            <div className="flex items-center justify-between">
-              <div><p className="text-sm text-gray-500">Available Credits</p><p className="text-2xl text-gray-900">{mintedCredits.length}</p></div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center"><Leaf className="w-6 h-6 text-blue-600" /></div>
-            </div>
-          </Card>
-          <Card 
-            className={`p-6 cursor-pointer transition-all ${activeCreditFilter === 'LISTED' ? 'ring-2 ring-yellow-500' : 'hover:shadow-md'}`}
-            onClick={() => setActiveCreditFilter('LISTED')}
-          >
-            <div className="flex items-center justify-between">
-              <div><p className="text-sm text-gray-500">Credits for Sale</p><p className="text-2xl text-gray-900">{myActiveListings.length}</p></div>
-              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center"><ShoppingCart className="w-6 h-6 text-yellow-600" /></div>
-            </div>
-          </Card>
-          <Card 
-            className={`p-6 cursor-pointer transition-all ${activeCreditFilter === 'SOLD' ? 'ring-2 ring-gray-500' : 'hover:shadow-md'}`}
-            onClick={() => setActiveCreditFilter('SOLD')}
-          >
-            <div className="flex items-center justify-between">
-              <div><p className="text-sm text-gray-500">Sold Credits</p><p className="text-2xl text-gray-900">{mySoldListings.length}</p></div>
-              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center"><Check className="w-6 h-6 text-gray-600" /></div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Filtered Credits Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 min-h-[300px]">
-          {isLoading ? (
-            <div className="col-span-full flex justify-center items-center p-12"><Loader2 className="w-8 h-8 animate-spin"/></div>
-          ) : (
-            <>
-              {activeCreditFilter === 'MINTED' && (paginatedCredits.length === 0 ? <p className="col-span-full text-center">No credits available.</p> : paginatedCredits.map(c => <CreditCard key={c.id} credit={c} onOpenListingDialog={openListingDialog} onOpenClaimingDialog={openClaimingDialog} />))}
-              {activeCreditFilter === 'LISTED' && (paginatedCredits.length === 0 ? <p className="col-span-full text-center">No credits for sale.</p> : paginatedCredits.map(l => <ListingCard key={l.id} listing={l} hbarToUsdRate={hbarToUsdRate} />))}
-              {activeCreditFilter === 'SOLD' && (mySoldListings.length === 0 ? <p className="col-span-full text-center">No credits sold.</p> : mySoldListings.map(l => <CreditCard key={l.id} credit={l.credit} listingId={l.id} onOpenListingDialog={openListingDialog} onOpenClaimingDialog={openClaimingDialog} />))}
-            </>
-          )}
-        </div>
-        {totalCreditPages > 1 && (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 min-h-[300px]">
+            {isLoading ? (
+              <div className="col-span-full flex justify-center items-center p-12"><Loader2 className="w-8 h-8 animate-spin"/></div>
+            ) : paginatedProjects.length === 0 ? (
+              <div className="col-span-full text-center p-12"><p>No projects in this category.</p></div>
+            ) : (
+              paginatedProjects.map(project => (
+                <ProjectCard key={project.id} project={project} />
+              ))
+            )}
+          </div>
+          {totalProjectPages > 1 && (
             <div className="flex justify-center items-center gap-4 mt-8">
-              <Button onClick={() => setCreditsPage(p => Math.max(1, p - 1))} disabled={creditsPage === 1}>Previous</Button>
-              <span>Page {creditsPage} of {totalCreditPages}</span>
-              <Button onClick={() => setCreditsPage(p => Math.min(totalCreditPages, p + 1))} disabled={creditsPage === totalCreditPages}>Next</Button>
+              <Button onClick={() => setProjectsPage(p => Math.max(1, p - 1))} disabled={projectsPage === 1}>Previous</Button>
+              <span>Page {projectsPage} of {totalProjectPages}</span>
+              <Button onClick={() => setProjectsPage(p => Math.min(totalProjectPages, p + 1))} disabled={projectsPage === totalProjectPages}>Next</Button>
             </div>
           )}
-      </div>
+        </TabsContent>
+        <TabsContent value="credits" className="space-y-4">
+          
+          {/* Stats Cards / Filters for Credits */}
+          <div className="grid md:grid-cols-3 gap-4">
+            <Card 
+              className={`p-6 cursor-pointer transition-all ${activeCreditFilter === 'MINTED' ? 'ring-2 ring-blue-500' : 'hover:shadow-md'}`}
+              onClick={() => setActiveCreditFilter('MINTED')}
+            >
+              <div className="flex items-center justify-between">
+                <div><p className="text-sm text-gray-500">Available Credits</p><p className="text-2xl text-gray-900">{mintedCredits.length}</p></div>
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center"><Leaf className="w-6 h-6 text-blue-600" /></div>
+              </div>
+            </Card>
+            <Card 
+              className={`p-6 cursor-pointer transition-all ${activeCreditFilter === 'LISTED' ? 'ring-2 ring-yellow-500' : 'hover:shadow-md'}`}
+              onClick={() => setActiveCreditFilter('LISTED')}
+            >
+              <div className="flex items-center justify-between">
+                <div><p className="text-sm text-gray-500">Credits for Sale</p><p className="text-2xl text-gray-900">{myActiveListings.length}</p></div>
+                <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center"><ShoppingCart className="w-6 h-6 text-yellow-600" /></div>
+              </div>
+            </Card>
+            <Card 
+              className={`p-6 cursor-pointer transition-all ${activeCreditFilter === 'SOLD' ? 'ring-2 ring-gray-500' : 'hover:shadow-md'}`}
+              onClick={() => setActiveCreditFilter('SOLD')}
+            >
+              <div className="flex items-center justify-between">
+                <div><p className="text-sm text-gray-500">Sold Credits</p><p className="text-2xl text-gray-900">{mySoldListings.length}</p></div>
+                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center"><Check className="w-6 h-6 text-gray-600" /></div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Filtered Credits Grid */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 min-h-[300px]">
+            {isLoading ? (
+              <div className="col-span-full flex justify-center items-center p-12"><Loader2 className="w-8 h-8 animate-spin"/></div>
+            ) : (
+              <>
+                {activeCreditFilter === 'MINTED' && (paginatedCredits.length === 0 ? <p className="col-span-full text-center">No credits available.</p> : paginatedCredits.map(c => <CreditCard key={c.id} credit={c} onOpenListingDialog={openListingDialog} onOpenClaimingDialog={openClaimingDialog} />))}
+                {activeCreditFilter === 'LISTED' && (paginatedCredits.length === 0 ? <p className="col-span-full text-center">No credits for sale.</p> : paginatedCredits.map(l => <ListingCard key={l.id} listing={l} hbarToUsdRate={hbarToUsdRate} />))}
+                {activeCreditFilter === 'SOLD' && (mySoldListings.length === 0 ? <p className="col-span-full text-center">No credits sold.</p> : mySoldListings.map(l => <CreditCard key={l.id} credit={l.credit} listingId={l.id} onOpenListingDialog={openListingDialog} onOpenClaimingDialog={openClaimingDialog} />))}
+              </>
+            )}
+          </div>
+          {totalCreditPages > 1 && (
+              <div className="flex justify-center items-center gap-4 mt-8">
+                <Button onClick={() => setCreditsPage(p => Math.max(1, p - 1))} disabled={creditsPage === 1}>Previous</Button>
+                <span>Page {creditsPage} of {totalCreditPages}</span>
+                <Button onClick={() => setCreditsPage(p => Math.min(totalCreditPages, p + 1))} disabled={creditsPage === totalCreditPages}>Next</Button>
+              </div>
+            )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
