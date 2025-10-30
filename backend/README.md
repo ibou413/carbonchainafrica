@@ -55,26 +55,9 @@ Follow these steps to get the backend up and running:
     pip install -r requirements.txt
     ```
 
-4.  **Configure environment variables:**
-    Create a `.env` file in the `backend` directory. This file is crucial for storing sensitive information.
-    
-    ```
-    SECRET_KEY=your_strong_django_secret_key
-    DATABASE_URL=sqlite:///db.sqlite3
-    ```
-    
-    - `SECRET_KEY`: A strong, randomly generated key for Django's cryptographic signing.
-    - `DATABASE_URL`: The connection string for your database. For local development, `sqlite:///db.sqlite3` is sufficient.
 
-5.  **Configure CORS:**
-    In `app/settings.py`, ensure that the `CORS_ALLOWED_ORIGINS` list includes the URL of your frontend application. For local development, this is typically `http://localhost:3000`.
-    
-    ```python
-    CORS_ALLOWED_ORIGINS = [
-        'http://localhost:3000',
-        'http://127.0.0.1:3000',
-    ]
-    ```
+
+
 
 6.  **Run database migrations:**
     ```bash

@@ -1,8 +1,8 @@
 {
-  "operatorId": "0.0.6915090",
-  "nftContractId": "0.0.7160410",
-  "escrowContractId": "0.0.7160412",
-  "marketplaceContractId": "0.0.7160415",
-  "nftTokenAddress": "0.0.7160416",
+  "operatorId": "0.0.7060773",
+  "nftContractId": "0.0.7162026",
+  "escrowContractId": "0.0.7162029",
+  "marketplaceContractId": "0.0.7162034",
+  "nftTokenAddress": "0.0.7162037",
   "marketplaceFeePercent": 0
 }

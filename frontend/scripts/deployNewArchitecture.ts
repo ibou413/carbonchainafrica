@@ -12,19 +12,29 @@ import {
 } from "@hashgraph/sdk";
 import * as dotenv from "dotenv";
 import * as fs from "fs";
+import * as path from "path"; // Import path module
+import { fileURLToPath } from 'url';
 
-dotenv.config({ path: "./scripts/.env" });
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Log current working directory and resolved .env.local path
+console.log("Current working directory:", process.cwd());
+const envPath = path.resolve(__dirname, "../.env.local");
+console.log("Resolved .env.local path:", envPath);
+
+dotenv.config({ path: envPath }); // Use the resolved path
 
 async function main() {
     console.log("🚀 Starting new architecture deployment...");
 
     // 1. Get operator credentials
-    if (!process.env.OPERATOR_ID || !process.env.OPERATOR_KEY) {
-        throw new Error("Environment variables OPERATOR_ID and OPERATOR_KEY must be present");
+    if (!process.env.NEXT_PUBLIC_OPERATOR_ID || !process.env.NEXT_PUBLIC_OPERATOR_KEY) {
+        throw new Error("Environment variables NEXT_PUBLIC_OPERATOR_ID and NEXT_PUBLIC_OPERATOR_KEY must be present");
     }
     console.log("Using OPERATOR account as payer for deployment...");
-    const operatorId = AccountId.fromString(process.env.OPERATOR_ID);
-    const operatorKey = PrivateKey.fromStringECDSA(process.env.OPERATOR_KEY);
+    const operatorId = AccountId.fromString(process.env.NEXT_PUBLIC_OPERATOR_ID);
+    const operatorKey = PrivateKey.fromString(process.env.NEXT_PUBLIC_OPERATOR_KEY);
     const client = Client.forTestnet().setOperator(operatorId, operatorKey);
 
     try {
