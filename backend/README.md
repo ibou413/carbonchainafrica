@@ -52,23 +52,38 @@ Follow these steps to get the backend up and running:
     ```
 
 4.  **Configure environment variables:**
-    Create a `.env` file in the `backend` directory (you can use `.env.example` as a template). At a minimum, you'll need to configure:
-    - `SECRET_KEY`: A strong Django secret key.
-    - `DEBUG`: `True` for development, `False` for production.
-    - `DATABASE_URL`: Your database connection string (e.g., `sqlite:///db.sqlite3` for SQLite, or `postgres://user:password@host:port/dbname`).
+    Create a `.env` file in the `backend` directory. This file is crucial for storing sensitive information.
+    
+    ```
+    SECRET_KEY=your_strong_django_secret_key
+    DATABASE_URL=sqlite:///db.sqlite3
+    ```
+    
+    - `SECRET_KEY`: A strong, randomly generated key for Django's cryptographic signing.
+    - `DATABASE_URL`: The connection string for your database. For local development, `sqlite:///db.sqlite3` is sufficient.
 
-5.  **Run database migrations:**
+5.  **Configure CORS:**
+    In `app/settings.py`, ensure that the `CORS_ALLOWED_ORIGINS` list includes the URL of your frontend application. For local development, this is typically `http://localhost:3000`.
+    
+    ```python
+    CORS_ALLOWED_ORIGINS = [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+    ]
+    ```
+
+6.  **Run database migrations:**
     ```bash
     python manage.py migrate
     ```
 
-6.  **Create a superuser (optional, for Django Admin):**
+7.  **Create a superuser (optional, for Django Admin):**
     ```bash
     python manage.py createsuperuser
     ```
     
 
-7.  **Start the development server:**
+8.  **Start the development server:**
     ```bash
     python manage.py runserver
     ```

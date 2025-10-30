@@ -59,10 +59,17 @@ Follow these steps to get the frontend up and running:
     ```
 
 3.  **Configure environment variables:**
-    Create a `.env.local` file in the `frontend` directory (you can use `.env.example` as a template). You will need to configure:
-    - `NEXT_PUBLIC_OPERATOR_ID`: Hedera Account ID for the Verifier (e.g., `0.0.XXXXXX`).
-    - `NEXT_PUBLIC_OPERATOR_KEY`: Private Key for the Verifier account.
-    - Ensure the backend API URL is correctly set (e.g., `NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:8000`).
+    Create a `.env.local` file in the `frontend` directory. This file is essential for connecting the frontend to the backend and Hedera network.
+    
+    ```
+    NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:8000
+    NEXT_PUBLIC_OPERATOR_ID=your_hedera_operator_id
+    NEXT_PUBLIC_OPERATOR_KEY=your_hedera_operator_private_key
+    ```
+    
+    - `NEXT_PUBLIC_BACKEND_URL`: The URL of the running backend server. For local development, this is `http://127.0.0.1:8000`.
+    - `NEXT_PUBLIC_OPERATOR_ID`: The Hedera Account ID of the verifier.
+    - `NEXT_PUBLIC_OPERATOR_KEY`: The private key of the verifier's Hedera account.
 
 4.  **Compile and Deploy Smart Contracts:**
     The smart contracts need to be compiled and deployed to Hedera. This project includes a script for this:
@@ -182,3 +189,5 @@ The frontend interacts with the Hedera network primarily through `ethers.js` and
 > -   Claiming proceeds from sales.
 
 Contract ABIs and deployed addresses are managed via the `deployment-new-architecture.json` file, generated during the deployment script execution.
+
+
