@@ -102,10 +102,11 @@ To get CarbonChain-Africa up and running, follow these steps:
 ### Prerequisites
 
 - Node.js (v18.17+ or v20+)
-- Python (3.10, 3.11, or 3.12)
+- Python (3.12+)
 - A registered Hedera testnet account
-- HashConnect wallet extension (e.g., Blade, HashPack)
+- HashConnect wallet extension (e.g., HashPack, Blade)
 - Git
+- IPFS
 
 ### Backend Setup
 
@@ -120,7 +121,7 @@ Refer to the [Frontend README](./frontend/README.md) for detailed setup and inst
 
 > - **Blockchain**: Hedera (Smart Contracts, HTS, HCS, HSCS)
 > - **Frontend**: Next.js, React, TypeScript, TailwindCSS, Radix UI, Redux Toolkit, Ethers.js, HashConnect, Axios
-> - **Backend**: Django, Django REST Framework, Python 3.10+, PostgreSQL/SQLite, JWT (djangorestframework_simplejwt)
+> - **Backend**: Django, Django REST Framework, Python 3.12+, PostgreSQL/SQLite, JWT (djangorestframework_simplejwt)
 > - **Decentralized Storage**: IPFS
 > - **Authentication**: JWT (Backend) & HashConnect (Hedera)
 
