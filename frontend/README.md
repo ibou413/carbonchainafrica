@@ -69,11 +69,22 @@ Follow these steps to get the frontend up and running:
     NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:8000
     NEXT_PUBLIC_OPERATOR_ID=your_hedera_operator_id
     NEXT_PUBLIC_OPERATOR_KEY=your_hedera_operator_private_key
+    NEXT_PUBLIC_PINATA_API_KEY=your_pinata_api_key
+    NEXT_PUBLIC_PINATA_API_SECRET=your_pinata_api_secret
     ```
     
     - `NEXT_PUBLIC_BACKEND_URL`: The URL of the running backend server. For local development, this is `http://127.0.0.1:8000`.
     - `NEXT_PUBLIC_OPERATOR_ID`: The Hedera Account ID of the verifier.
     - `NEXT_PUBLIC_OPERATOR_KEY`: The private key of the verifier's Hedera account.
+    - `NEXT_PUBLIC_PINATA_API_KEY`: Your Pinata API key for IPFS storage.
+    - `NEXT_PUBLIC_PINATA_API_SECRET`: Your Pinata API secret for IPFS storage.
+
+### Getting Your Pinata API Keys
+
+1.  **Create a Pinata Account:** Go to [https://www.pinata.cloud/](https://www.pinata.cloud/) and sign up for a free account.
+2.  **Navigate to API Keys:** Once you are logged in, click on your profile picture in the top right corner and select "API Keys".
+3.  **Create a New Key:** Click the "New Key" button. Give your key a name and make sure to enable the `pinFileToIPFS` and `pinJSONToIPFS` permissions.
+4.  **Copy Your Keys:** Copy the API Key and API Secret and paste them into your `.env.local` file.
 
 4.  **Compile and Deploy Smart Contracts:**
     The smart contracts need to be compiled and deployed to Hedera. This project includes a script for this:
