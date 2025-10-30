@@ -7,6 +7,7 @@ interface HashConnectState {
   isConnected: boolean;
   accountId: string;
   pairingData: HashConnectTypes.PairingData | null;
+  error: string | null;
 }
 
 const initialState: HashConnectState = {
@@ -14,6 +15,7 @@ const initialState: HashConnectState = {
   isConnected: false,
   accountId: '',
   pairingData: null,
+  error: null,
 };
 
 const hashconnectSlice = createSlice({
@@ -28,12 +30,18 @@ const hashconnectSlice = createSlice({
       state.accountId = action.payload.accountId;
       state.pairingData = action.payload.pairingData;
       state.isLoading = false;
+      state.error = null; // Clear any error on successful connection
     },
     setDisconnected: (state) => {
       state.isConnected = false;
       state.accountId = '';
       state.pairingData = null;
       state.isLoading = false;
+      state.error = null; // Clear any error on disconnection
+    },
+    setError: (state, action: PayloadAction<string | null>) => {
+      state.error = action.payload;
+      state.isLoading = false; // Stop loading on error
     },
   },
 });
@@ -42,6 +50,7 @@ export const {
   setLoading, 
   setConnected, 
   setDisconnected, 
+  setError,
 } = hashconnectSlice.actions;
 
 export const selectHashConnect = (state: RootState) => state.hashconnect;

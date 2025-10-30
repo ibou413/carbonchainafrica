@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { getHashConnect } from '../services/hashconnect';
-import { setLoading, setConnected, setDisconnected } from '../store/hashconnectSlice';
+import { setLoading, setConnected, setDisconnected, setError } from '../store/hashconnectSlice';
 import { HashConnect } from 'hashconnect';
 
 export const useHashConnect = () => {
@@ -44,8 +44,9 @@ export const useHashConnect = () => {
             pairingData: pairingData 
           }));
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error initializing HashConnect:", error);
+        dispatch(setError(error.message));
       }
     };
 
@@ -58,8 +59,10 @@ export const useHashConnect = () => {
   const connect = useCallback(() => {
     if (!hc) {
       console.error("HashConnect not initialized, cannot open pairing modal.");
+      dispatch(setError("HashConnect not initialized."));
       return;
     }
+    dispatch(setError(null)); // Clear any previous error
     dispatch(setLoading(true));
     hc.openPairingModal();
   }, [hc, dispatch]);
@@ -67,6 +70,7 @@ export const useHashConnect = () => {
   const disconnect = useCallback(async () => {
     if (!hc) {
       dispatch(setDisconnected());
+      dispatch(setError(null)); // Clear any error on disconnection
       return;
     }
     try {
@@ -76,11 +80,13 @@ export const useHashConnect = () => {
       hc.clearConnectionsAndData();
       // Force clear localStorage to prevent any stale data from persisting
       localStorage.removeItem('hashconnectData');
-    } catch(error) {
+    } catch(error: any) {
         console.error("Error during full disconnect:", error);
+        dispatch(setError(error.message));
     } finally {
         // Always update the state to disconnected
         dispatch(setDisconnected());
+        dispatch(setError(null)); // Clear any error on disconnection
     }
   }, [dispatch, hc]);
 
