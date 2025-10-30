@@ -50,21 +50,28 @@ export default function RegisterPage() {
             <CardTitle className="text-2xl">Create Your {role} Account</CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)}>
-              <div className="mb-4">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" {...formRegister('email', { required: 'Email is required' })} />
-                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message as string}</p>}
+            {isLoading ? (
+              <div className="flex justify-center items-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+                <p className="ml-4">Creating account...</p>
               </div>
-              <div className="mb-6">
-                <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" {...formRegister('password', { required: 'Password is required' })} />
-                {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message as string}</p>}
-              </div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? 'Creating Account...' : 'Create Account'}
-              </Button>
-            </form>
+            ) : (
+              <form onSubmit={handleSubmit(onSubmit)}>
+                <div className="mb-4">
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" {...formRegister('email', { required: 'Email is required' })} />
+                  {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message as string}</p>}
+                </div>
+                <div className="mb-6">
+                  <Label htmlFor="password">Password</Label>
+                  <Input id="password" type="password" {...formRegister('password', { required: 'Password is required' })} />
+                  {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message as string}</p>}
+                </div>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  Create Account
+                </Button>
+              </form>
+            )}
           </CardContent>
         </Card>
       </main>

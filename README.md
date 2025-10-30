@@ -97,8 +97,8 @@ To get CarbonChain-Africa up and running, follow these steps:
 
 ### Prerequisites
 
-- Node.js (v18+) & npm
-- Python (v3.10+) & pip
+- Node.js (v18.17+ or v20+)
+- Python (3.10, 3.11, or 3.12)
 - A registered Hedera testnet account
 - HashConnect wallet extension (e.g., Blade, HashPack)
 - Git

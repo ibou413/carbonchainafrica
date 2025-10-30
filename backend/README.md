@@ -87,7 +87,7 @@ Follow these steps to get the backend up and running:
     ```bash
     python manage.py runserver
     ```
-    The backend API will be accessible at `http://127.0.0.1:8000/api/`.
+    The backend  will be accessible at `http://127.0.0.1:8000`.
 
     You can then access the Django admin interface as a superuser at `http://127.0.0.1:8000/admin/`.
 

@@ -21,7 +21,6 @@ export default function LoginPage() {
   const { currentUser, isLoading, isSuccess, isError, message } = useSelector((state: RootState) => state.user);
 
   useEffect(() => {
-    console.log('Login Page State:', { isSuccess, currentUser, isError, message });
     // Redirect to dashboard on successful login
     if (isSuccess && currentUser) {
       router.push('/dashboard');
@@ -50,21 +49,28 @@ export default function LoginPage() {
             <CardDescription>Enter your credentials to access your account</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)}>
-              <div className="mb-4">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" {...formRegister('email', { required: 'Email is required' })} />
-                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message as string}</p>}
+            {isLoading ? (
+              <div className="flex justify-center items-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+                <p className="ml-4">Signing in...</p>
               </div>
-              <div className="mb-6">
-                <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" {...formRegister('password', { required: 'Password is required' })} />
-                {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message as string}</p>}
-              </div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? 'Signing In...' : 'Sign In'}
-              </Button>
-            </form>
+            ) : (
+              <form onSubmit={handleSubmit(onSubmit)}>
+                <div className="mb-4">
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" {...formRegister('email', { required: 'Email is required' })} />
+                  {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message as string}</p>}
+                </div>
+                <div className="mb-6">
+                  <Label htmlFor="password">Password</Label>
+                  <Input id="password" type="password" {...formRegister('password', { required: 'Password is required' })} />
+                  {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message as string}</p>}
+                </div>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  Sign In
+                </Button>
+              </form>
+            )}
           </CardContent>
           <CardFooter className="text-center text-sm">
             <p>Don't have an account? <Link href="/select-role" className="text-blue-600 hover:underline">Sign up</Link></p>
