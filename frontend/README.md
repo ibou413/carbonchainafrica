@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="../Logo.png" alt="CarbonChain-Africa Logo" width="200"/>
+</p>
+
 # CarbonChain-Africa Frontend
 
 This directory contains the Next.js backend and frontend application for CarbonChain-Africa. It provides the smart contracts and the user interface for all interactions within the carbon credit marketplace, including project submission, verification, and NFT trading.

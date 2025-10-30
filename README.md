@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./Logo.png" alt="CarbonChain-Africa Logo" width="200"/>
+</p>
+
 # CarbonChain-Africa: A Decentralized Carbon Credit Marketplace
 
 CarbonChain-Africa is a decentralized platform built on Hedera Hashgraph that connects carbon credit projects across Africa with global buyers. Our mission is to bring transparency, liquidity, and accessibility to the African carbon market, empowering local projects and enabling corporations to verifiably offset their carbon footprint.

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="../Logo.png" alt="CarbonChain-Africa Logo" width="200"/>
+</p>
+
 # 🌍 CarbonChain-Africa Backend
 
 This directory contains the Django REST Framework backend for the CarbonChain-Africa application. It serves as the central data management layer, handling user authentication, project submissions, and marketplace listings, while integrating with Hedera blockchain events.
