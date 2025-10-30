@@ -35,7 +35,7 @@ We achieve this by:
 
 ## 🎥 Live Demo
 
-> **[IMPORTANT]** Please replace `[Link to your 3-minute video presentation]` with the actual link to your video presentation.
+> [Watch the Demo Video](https://youtu.be/87yBDQNlzmQ)
 
 ## 🏛️ Project Architecture
 
